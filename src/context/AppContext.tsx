@@ -58,15 +58,15 @@ const DEMO_NIKS = new Set([
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
     const saved = localStorage.getItem('mer_current_user');
-    if (!saved) return INITIAL_EMPLOYEES[0];
+    if (!saved) return null;
     try {
-      const parsed: Employee = JSON.parse(saved);
-      if (DEMO_NIKS.has(parsed.nik)) {
-        return INITIAL_EMPLOYEES[0];
+      const parsed: Employee | null = JSON.parse(saved);
+      if (!parsed || DEMO_NIKS.has(parsed.nik)) {
+        return null;
       }
       return parsed;
     } catch {
-      return INITIAL_EMPLOYEES[0];
+      return null;
     }
   });
 
