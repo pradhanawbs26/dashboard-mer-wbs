@@ -1,0 +1,779 @@
+import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
+import { UserSettingsModal } from '../common/UserSettingsModal';
+import { YtdParameterTable } from '../common/YtdParameterTable';
+import {
+  getScoreCategoryBadge,
+  formatPeriodLabel,
+} from '../../utils/calculations';
+import {
+  Users,
+  Award,
+  TrendingUp,
+  AlertTriangle,
+  Search,
+  Filter,
+  HardHat,
+  BarChart2,
+  Settings,
+  UserCheck,
+  ChevronRight,
+  ShieldCheck,
+  Layers,
+  X,
+  Eye,
+  Briefcase,
+  Sparkles,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+
+interface HeadCoachViewProps {
+  activeTab?: string;
+}
+
+export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_dashboard' }) => {
+  const {
+    currentUser,
+    employees,
+    reports,
+    selectedPeriod,
+    operatorParameters,
+    nonomParameters,
+  } = useApp();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGlNik, setSelectedGlNik] = useState<string | null>(null);
+  const [selectedYtdNik, setSelectedYtdNik] = useState<string>('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'photo' | 'password'>('photo');
+
+  // Subordinate detail modal states
+  const [selectedSubNik, setSelectedSubNik] = useState<string | null>(null);
+  const [subModalTab, setSubModalTab] = useState<'period' | 'ytd'>('ytd');
+
+  if (!currentUser) return null;
+
+  // 1. Group Leaders under this Head Coach
+  const myGroupLeaders = employees.filter(
+    (e) =>
+      e.role === 'group_leader' &&
+      (e.groupLeaderId === currentUser.nik ||
+        e.groupLeaderName === currentUser.name ||
+        !e.groupLeaderId)
+  );
+
+  // 2. Group Leaders stats & their team subordinates
+  const glStatsList = myGroupLeaders.map((gl) => {
+    const glSubordinates = employees.filter(
+      (e) => e.role === 'subordinate' && (e.groupLeaderId === gl.nik || e.groupLeaderName === gl.name)
+    );
+
+    const subReports = glSubordinates.map((sub) => {
+      const rep = reports.find((r) => r.nik === sub.nik && r.period === selectedPeriod);
+      return {
+        subordinate: sub,
+        report: rep,
+        finalScore: rep ? rep.finalScore : 0,
+      };
+    });
+
+    const validSubReports = subReports.filter((sr) => sr.report !== undefined);
+    const avgScoreVal =
+      validSubReports.length > 0
+        ? validSubReports.reduce((acc, sr) => acc + sr.finalScore, 0) / validSubReports.length
+        : 0;
+
+    return {
+      groupLeader: gl,
+      subordinates: glSubordinates,
+      subReports,
+      validReportsCount: validSubReports.length,
+      avgScore: Number(avgScoreVal.toFixed(2)),
+    };
+  });
+
+  // 3. Head Coach Overall Summary across all GL teams
+  const allHCSubordinates = glStatsList.flatMap((g) => g.subordinates);
+  const allHCSubReports = glStatsList.flatMap((g) => g.subReports.filter((sr) => sr.report !== undefined));
+
+  const hcOverallAvgScore =
+    allHCSubReports.length > 0
+      ? (
+          allHCSubReports.reduce((acc, sr) => acc + sr.finalScore, 0) /
+          allHCSubReports.length
+        ).toFixed(2)
+      : '0.00';
+
+  // Sort GLs by team average MER score descending
+  const sortedGlStats = [...glStatsList].sort((a, b) => b.avgScore - a.avgScore);
+  const topGlTeam = sortedGlStats[0]?.avgScore > 0 ? sortedGlStats[0] : null;
+
+  // Filtered GL list by search term
+  const filteredGlStats = sortedGlStats.filter((item) => {
+    const matchesGlSearch =
+      item.groupLeader.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.groupLeader.nik.includes(searchTerm) ||
+      item.groupLeader.department.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesSubSearch = item.subordinates.some(
+      (sub) =>
+        sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sub.nik.includes(searchTerm)
+    );
+
+    return matchesGlSearch || matchesSubSearch;
+  });
+
+  // Chart data comparing Group Leaders' team MER average
+  const chartData = sortedGlStats.map((item) => ({
+    name: item.groupLeader.name.split(' ')[0],
+    fullName: item.groupLeader.name,
+    score: item.avgScore,
+    memberCount: item.subordinates.length,
+    department: item.groupLeader.department,
+  }));
+
+  // Active GL detail modal object
+  const activeGlDetail = selectedGlNik
+    ? glStatsList.find((g) => g.groupLeader.nik === selectedGlNik)
+    : null;
+
+  // Active subordinate detail object
+  const allHCSubObjects = glStatsList.flatMap((g) => g.subReports);
+  const activeSubDetail = selectedSubNik
+    ? allHCSubObjects.find((sr) => sr.subordinate.nik === selectedSubNik)
+    : null;
+
+  // YTD Employee selector (Subordinates & Group Leaders)
+  const selectableYtdEmployees = [...myGroupLeaders, ...allHCSubordinates];
+  const activeYtdEmployee =
+    selectableYtdEmployees.find((e) => e.nik === selectedYtdNik) ||
+    allHCSubordinates[0] ||
+    myGroupLeaders[0] ||
+    currentUser;
+
+  return (
+    <div className="space-y-6 pb-20">
+      {/* Head Coach Header Banner */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-black text-xl shadow-sm shrink-0 overflow-hidden border-2 border-amber-200">
+              {currentUser.photoUrl ? (
+                <img
+                  src={currentUser.photoUrl}
+                  alt={currentUser.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                currentUser.name.charAt(0)
+              )}
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300 flex items-center space-x-1">
+                  <Sparkles className="w-3 h-3 text-amber-600" />
+                  <span>HEAD COACH OPERATIONS</span>
+                </span>
+                <span className="text-xs text-slate-500 font-mono">
+                  NIK: {currentUser.nik}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
+                {activeTab === 'profile'
+                  ? `Profil Saya: ${currentUser.name}`
+                  : activeTab === 'ytd_report'
+                  ? `Rapor YTD Parameter: ${activeYtdEmployee.name}`
+                  : `Dashboard Operational Head Coach`}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Pengawasan Hirarki: {myGroupLeaders.length} Group Leader & {allHCSubordinates.length} Subordinat Operasional ({currentUser.department}) • Periode {formatPeriodLabel(selectedPeriod)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3 shrink-0">
+            <div className="bg-amber-50/70 px-4 py-2.5 rounded-xl border border-amber-200 text-right">
+              <span className="text-[10px] uppercase font-bold text-amber-800 block">
+                Rata-rata MER Operasional
+              </span>
+              <span className="text-2xl font-black text-amber-700">
+                {hcOverallAvgScore}{' '}
+                <span className="text-xs text-slate-500 font-normal">/ 4.00</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <UserSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        defaultTab={settingsTab}
+      />
+
+      {/* Tab: Profil Saya */}
+      {activeTab === 'profile' && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 text-slate-800 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-lg font-bold text-amber-700 flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-amber-600" />
+              <span>Profil & Informasi Head Coach</span>
+            </h3>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer"
+              title="Pengaturan Foto Profil & Password Akun"
+            >
+              <Settings className="w-4 h-4 text-slate-600" />
+              <span>Pengaturan Akun</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">Nama Lengkap:</span>
+              <p className="font-extrabold text-slate-900 text-sm mt-0.5">{currentUser.name}</p>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">NIK Karyawan:</span>
+              <p className="font-extrabold text-slate-900 text-sm mt-0.5 font-mono">{currentUser.nik}</p>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">Jabatan Utama:</span>
+              <p className="font-extrabold text-slate-900 text-sm mt-0.5">{currentUser.position}</p>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">Lingkup Area Kerja Operations:</span>
+              <p className="font-extrabold text-slate-900 text-sm mt-0.5">{currentUser.department}</p>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">Role Hirarki Sistem:</span>
+              <p className="font-extrabold text-amber-700 text-sm mt-0.5">Head Coach Operations</p>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 font-medium">Tim Bawahan Direct:</span>
+              <p className="font-extrabold text-blue-600 text-sm mt-0.5">{myGroupLeaders.length} Group Leader ({allHCSubordinates.length} Total Subordinat)</p>
+            </div>
+          </div>
+
+          {/* Group Leaders under Head Coach */}
+          <div className="pt-2">
+            <h4 className="font-bold text-xs text-slate-700 mb-2.5">
+              Daftar Group Leader di Bawah Pengawasan Direct:
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {myGroupLeaders.map((gl) => {
+                const subsCount = employees.filter(
+                  (e) => e.role === 'subordinate' && (e.groupLeaderId === gl.nik || e.groupLeaderName === gl.name)
+                ).length;
+                return (
+                  <div
+                    key={gl.id}
+                    className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between"
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                        {gl.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-900 truncate">{gl.name}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          NIK: {gl.nik} • Area Kerja: {gl.department}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded-md border border-blue-200 shrink-0">
+                      {subsCount} Subordinat
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Rapor YTD Parameter */}
+      {activeTab === 'ytd_report' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pilih Karyawan (Group Leader atau Subordinat):
+              </label>
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-amber-600 shrink-0" />
+                <select
+                  value={activeYtdEmployee.nik}
+                  onChange={(e) => setSelectedYtdNik(e.target.value)}
+                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-amber-600 cursor-pointer max-w-xs sm:max-w-md"
+                >
+                  <optgroup label="Group Leaders">
+                    {myGroupLeaders.map((gl) => (
+                      <option key={gl.id} value={gl.nik}>
+                        [GL] {gl.name} (NIK: {gl.nik}) • {gl.department}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Subordinat Operasional">
+                    {allHCSubordinates.map((sub) => (
+                      <option key={sub.id} value={sub.nik}>
+                        {sub.name} (NIK: {sub.nik}) • {sub.category} - {sub.department}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <YtdParameterTable
+            employee={activeYtdEmployee}
+            reports={reports}
+            operatorParameters={operatorParameters}
+            nonomParameters={nonomParameters}
+            selectedYear="2026"
+          />
+        </div>
+      )}
+
+      {/* Tab: Dashboard Tim Head Coach */}
+      {(activeTab === 'team_dashboard' || (activeTab !== 'profile' && activeTab !== 'ytd_report')) && (
+        <>
+          {/* Stats Metric Cards Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Total Group Leader */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-bold uppercase">Total Group Leader</span>
+                <Users className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{myGroupLeaders.length} GL</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Bawahan direct Head Coach
+              </p>
+            </div>
+
+            {/* Total Subordinates */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-bold uppercase">Subordinat Tim</span>
+                <HardHat className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{allHCSubordinates.length} Orang</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Di bawah {myGroupLeaders.length} tim Group Leader
+              </p>
+            </div>
+
+            {/* Overall MER Score */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-bold uppercase">Rerata MER Overall</span>
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+              </div>
+              <p className="text-2xl font-black text-emerald-600">{hcOverallAvgScore}</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Status: {parseFloat(hcOverallAvgScore) >= 3.0 ? 'Performa Baik' : 'Perlu Evaluasi'}
+              </p>
+            </div>
+
+            {/* Top GL Team */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-bold uppercase">Best GL Team</span>
+                <Award className="w-4 h-4 text-amber-500" />
+              </div>
+              <p className="text-sm font-extrabold text-amber-700 truncate">
+                {topGlTeam ? topGlTeam.groupLeader.name : '-'}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Rerata Tim: {topGlTeam ? topGlTeam.avgScore.toFixed(2) : '0.00'}
+              </p>
+            </div>
+          </div>
+
+          {/* Main Dashboard Section */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm space-y-6">
+            {/* Search Header */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Cari nama Group Leader, NIK, atau area kerja..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-600"
+                />
+              </div>
+            </div>
+
+            {/* Bar Chart comparing GL Teams */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                <BarChart2 className="w-4 h-4 text-amber-600" />
+                <span>Grafik Perbandingan Rerata Nilai MER per Tim Group Leader ({formatPeriodLabel(selectedPeriod)})</span>
+              </h3>
+              <div className="h-56 sm:h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                    <YAxis domain={[0, 4.5]} stroke="#64748b" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#e2e8f0',
+                        borderRadius: '0.75rem',
+                        color: '#0f172a',
+                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                      }}
+                      formatter={(val: any) => [`${val} / 4.00`, 'Rerata MER Tim GL']}
+                    />
+                    <Bar dataKey="score" fill="#d97706" radius={[6, 6, 0, 0]} name="Rerata MER Tim" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Group Leader List Cards */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                <Layers className="w-4 h-4 text-amber-600" />
+                <span>Daftar Tim Group Leader & Rata-Rata Nilai MER Tim</span>
+              </h3>
+
+              <div className="space-y-3">
+                {filteredGlStats.map((glItem, index) => {
+                  const badge = getScoreCategoryBadge(glItem.avgScore);
+                  return (
+                    <div
+                      key={glItem.groupLeader.id}
+                      className="bg-slate-50 border border-slate-200 hover:border-amber-400 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:bg-slate-100/70"
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <p className="font-extrabold text-slate-900 text-sm">
+                              {glItem.groupLeader.name}
+                            </p>
+                            <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded border border-blue-200 font-mono">
+                              NIK: {glItem.groupLeader.nik}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5 flex items-center space-x-2">
+                            <span>Area Kerja: <strong>{glItem.groupLeader.department}</strong></span>
+                            <span>•</span>
+                            <span>Jabatan: {glItem.groupLeader.position}</span>
+                          </p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <span className="text-[11px] bg-slate-200 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full">
+                              {glItem.subordinates.length} Subordinat
+                            </span>
+                            <span className="text-[11px] bg-emerald-50 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              {glItem.validReportsCount} Laporan Rapor
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Score & Action */}
+                      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-2 sm:pt-0 border-t sm:border-0 border-slate-200">
+                        <div className="text-left sm:text-right">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                            Rerata MER Tim GL
+                          </span>
+                          <span className="text-2xl font-black text-amber-600">
+                            {glItem.avgScore.toFixed(2)}
+                          </span>
+                          <span className={`block text-[10px] font-bold mt-0.5 ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedGlNik(glItem.groupLeader.nik)}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Detail Subordinat Tim</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Group Leader Team Subordinates Modal */}
+      {activeGlDetail && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full p-5 sm:p-6 text-slate-800 shadow-xl space-y-4 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-xs font-bold text-amber-700 uppercase">
+                  Detail Tim Group Leader
+                </span>
+                <h3 className="text-lg font-extrabold text-slate-900">
+                  {activeGlDetail.groupLeader.name} (NIK: {activeGlDetail.groupLeader.nik})
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Area Kerja: {activeGlDetail.groupLeader.department} • Total Subordinat: {activeGlDetail.subordinates.length} Orang
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedGlNik(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Team Score Summary */}
+            <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-amber-800">
+                  Rerata Nilai MER Tim Group Leader ({formatPeriodLabel(selectedPeriod)})
+                </span>
+                <p className="text-2xl font-black text-amber-700">
+                  {activeGlDetail.avgScore.toFixed(2)} <span className="text-xs text-slate-500 font-normal">/ 4.00</span>
+                </p>
+              </div>
+              <span className={`text-xs px-3 py-1 rounded-full font-bold border ${getScoreCategoryBadge(activeGlDetail.avgScore).badgeClass}`}>
+                {getScoreCategoryBadge(activeGlDetail.avgScore).label}
+              </span>
+            </div>
+
+            {/* Subordinates Table */}
+            <div>
+              <h4 className="font-bold text-xs text-slate-800 mb-2">
+                Daftar Subordinat di Bawah GL {activeGlDetail.groupLeader.name}:
+              </h4>
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-100 font-bold text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="p-3">Karyawan</th>
+                      <th className="p-3">Kategori / Jabatan</th>
+                      <th className="p-3">Skor MER Periode</th>
+                      <th className="p-3 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {activeGlDetail.subReports.map((sr) => {
+                      const badge = getScoreCategoryBadge(sr.finalScore);
+                      return (
+                        <tr key={sr.subordinate.id} className="hover:bg-slate-50">
+                          <td className="p-3">
+                            <div className="flex items-center space-x-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                {sr.subordinate.name.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900">{sr.subordinate.name}</p>
+                                <span className="text-[10px] text-blue-600 font-mono">
+                                  NIK: {sr.subordinate.nik}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-semibold text-slate-800">{sr.subordinate.position}</p>
+                            <span className="text-[10px] text-slate-500">
+                              {sr.subordinate.category} {sr.subordinate.equipmentType ? `(${sr.subordinate.equipmentType})` : ''}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            {sr.report ? (
+                              <div>
+                                <span className="font-black text-sm text-slate-900">
+                                  {sr.finalScore.toFixed(2)}
+                                </span>
+                                <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded ${badge.color}`}>
+                                  {badge.label}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[10px] italic">Belum Diinput</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => {
+                                setSelectedSubNik(sr.subordinate.nik);
+                              }}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-pointer"
+                            >
+                              Detail Rapor
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 text-right">
+              <button
+                onClick={() => setSelectedGlNik(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2 rounded-xl"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subordinate Detail Modal */}
+      {activeSubDetail && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full p-5 sm:p-6 text-slate-800 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-amber-700">
+                  Rincian Evaluasi & Rapor MER Subordinat
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <strong className="text-slate-800">{activeSubDetail.subordinate.name}</strong> (NIK: {activeSubDetail.subordinate.nik}) • Area Kerja: {activeSubDetail.subordinate.department}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedSubNik(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub Tabs */}
+            <div className="flex border-b border-slate-200 space-x-4">
+              <button
+                onClick={() => setSubModalTab('ytd')}
+                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                  subModalTab === 'ytd'
+                    ? 'border-amber-600 text-amber-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Rapor YTD Parameter Bulanan
+              </button>
+              <button
+                onClick={() => setSubModalTab('period')}
+                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                  subModalTab === 'period'
+                    ? 'border-amber-600 text-amber-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Detail Periode ({formatPeriodLabel(selectedPeriod)})
+              </button>
+            </div>
+
+            {subModalTab === 'ytd' && (
+              <YtdParameterTable
+                employee={activeSubDetail.subordinate}
+                reports={reports}
+                operatorParameters={operatorParameters}
+                nonomParameters={nonomParameters}
+                selectedYear="2026"
+              />
+            )}
+
+            {subModalTab === 'period' && (
+              <>
+                {activeSubDetail.report ? (
+                  <div className="space-y-4 text-xs">
+                    <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-800">
+                          Skor MER Periode {formatPeriodLabel(selectedPeriod)}
+                        </span>
+                        <p className="text-3xl font-black text-amber-700">
+                          {activeSubDetail.report.finalScore.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-full font-bold border ${
+                            getScoreCategoryBadge(activeSubDetail.report.finalScore).badgeClass
+                          }`}
+                        >
+                          {getScoreCategoryBadge(activeSubDetail.report.finalScore).label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="font-bold text-slate-800">
+                        Nilai Per Parameter (Skala 1-4):
+                      </p>
+                      {(activeSubDetail.subordinate.category === 'Operator'
+                        ? operatorParameters
+                        : nonomParameters
+                      ).map((p) => {
+                        const scoreVal = activeSubDetail.report?.scores[p.id] || 0;
+                        return (
+                          <div
+                            key={p.id}
+                            className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between"
+                          >
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {p.name}{' '}
+                                <span className="text-amber-700 text-[10px]">
+                                  ({p.weight}%)
+                                </span>
+                              </p>
+                              <p className="text-[10px] text-slate-500">
+                                {p.criteria[scoreVal as 1 | 2 | 3 | 4] || '-'}
+                              </p>
+                            </div>
+                            <span className="font-black text-lg text-amber-700 ml-2">
+                              {scoreVal}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic py-4">
+                    Belum ada data nilai MER diinput untuk periode ini.
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="pt-3 border-t border-slate-100 text-right">
+              <button
+                onClick={() => setSelectedSubNik(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2 rounded-xl"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

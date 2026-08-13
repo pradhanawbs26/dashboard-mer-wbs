@@ -1,0 +1,790 @@
+import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
+import {
+  getScoreCategoryBadge,
+  formatPeriodLabel,
+} from '../../utils/calculations';
+import { YtdParameterTable } from '../common/YtdParameterTable';
+import {
+  Award,
+  TrendingUp,
+  AlertOctagon,
+  Building,
+  HardHat,
+  Filter,
+  BarChart3,
+  Users,
+  Download,
+  PieChart as PieChartIcon,
+  UserX,
+  AlertTriangle,
+  UserCheck,
+  FileSpreadsheet,
+} from 'lucide-react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import * as XLSX from 'xlsx';
+
+export const ExecutiveAnalytics: React.FC = () => {
+  const {
+    employees,
+    reports,
+    selectedPeriod,
+    operatorParameters,
+    nonomParameters,
+  } = useApp();
+
+  const [analyticsMode, setAnalyticsMode] = useState<'MONTHLY' | 'YTD'>('MONTHLY');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Operator' | 'Nonom'>('ALL');
+  const [selectedYtdSubNik, setSelectedYtdSubNik] = useState<string>('');
+
+  // Subordinates list
+  const subEmployees = employees.filter((e) => e.role === 'subordinate');
+  const activeYtdSub = subEmployees.find((e) => e.nik === selectedYtdSubNik) || subEmployees[0];
+
+  const headCoachObj = employees.find((e) => e.role === 'head_coach');
+  const headCoachName = headCoachObj ? headCoachObj.name : 'Dharmawan Kustanto';
+
+  // Map employees with Monthly or YTD score
+  const employeeScores = subEmployees.map((emp) => {
+    if (analyticsMode === 'MONTHLY') {
+      const rep = reports.find(
+        (r) => r.nik === emp.nik && r.period === selectedPeriod
+      );
+      return {
+        employee: emp,
+        score: rep ? rep.finalScore : 0,
+        hasReport: !!rep,
+        periodCount: rep ? 1 : 0,
+      };
+    } else {
+      // YTD Calculation across all available reports for this employee
+      const empReps = reports.filter((r) => r.nik === emp.nik);
+      const avg =
+        empReps.length > 0
+          ? empReps.reduce((acc, r) => acc + r.finalScore, 0) / empReps.length
+          : 0;
+      return {
+        employee: emp,
+        score: Number(avg.toFixed(2)),
+        hasReport: empReps.length > 0,
+        periodCount: empReps.length,
+      };
+    }
+  });
+
+  // Filtered by category
+  const filteredScores = employeeScores.filter((item) => {
+    if (categoryFilter === 'ALL') return true;
+    return item.employee.category === categoryFilter;
+  });
+
+  // Sort by score descending
+  const sortedDescending = [...filteredScores].sort((a, b) => b.score - a.score);
+
+  // Top 10 Best Employees
+  const top10Best = sortedDescending.filter((s) => s.hasReport).slice(0, 10);
+
+  // Top 10 Worst Employees (Lowest scores with valid reports)
+  const sortedAscending = [...filteredScores]
+    .filter((s) => s.hasReport)
+    .sort((a, b) => a.score - b.score);
+  const top10Worst = sortedAscending.slice(0, 10);
+
+  // MER Score Bins & Pie Chart Calculation
+  const validScores = filteredScores.filter((s) => s.hasReport);
+  const totalEvaluated = validScores.length;
+
+  const scoreBins = [
+    {
+      name: 'Nilai < 1.00',
+      count: 0,
+      color: '#f43f5e',
+      label: 'Buruk',
+    },
+    {
+      name: 'Nilai 1.00 - 1.99',
+      count: 0,
+      color: '#f59e0b',
+      label: 'Kurang',
+    },
+    {
+      name: 'Nilai 2.00 - 2.99',
+      count: 0,
+      color: '#2563eb',
+      label: 'Cukup',
+    },
+    {
+      name: 'Nilai 3.00 - 4.00',
+      count: 0,
+      color: '#10b981',
+      label: 'Baik',
+    },
+  ];
+
+  validScores.forEach((item) => {
+    const s = item.score;
+    if (s < 1.0) scoreBins[0].count++;
+    else if (s < 2.0) scoreBins[1].count++;
+    else if (s < 3.0) scoreBins[2].count++;
+    else scoreBins[3].count++;
+  });
+
+  const pieChartData = scoreBins.map((bin) => ({
+    name: bin.name,
+    value: bin.count,
+    percentage:
+      totalEvaluated > 0
+        ? ((bin.count / totalEvaluated) * 100).toFixed(1)
+        : '0.0',
+    color: bin.color,
+    label: bin.label,
+  }));
+
+  // Lowest Average Team MER per Group Leader
+  const groupLeaders = employees.filter((e) => e.role === 'group_leader');
+
+  const glPerformanceList = groupLeaders.map((gl) => {
+    const teamSubs = subEmployees.filter(
+      (sub) => sub.groupLeaderNik === gl.nik || sub.groupLeaderName === gl.name
+    );
+
+    const teamScores = filteredScores.filter(
+      (fs) =>
+        fs.employee.groupLeaderNik === gl.nik ||
+        fs.employee.groupLeaderName === gl.name
+    );
+
+    const evaluatedSubs = teamScores.filter((ts) => ts.hasReport);
+    const totalScoreSum = evaluatedSubs.reduce((acc, curr) => acc + curr.score, 0);
+    const avgScore =
+      evaluatedSubs.length > 0 ? totalScoreSum / evaluatedSubs.length : 0;
+
+    return {
+      gl,
+      totalSubsCount: teamSubs.length,
+      evaluatedCount: evaluatedSubs.length,
+      avgScore: Number(avgScore.toFixed(2)),
+    };
+  });
+
+  // Sort GLs by average team score ascending (lowest first)
+  const lowestAvgGroupLeaders = [...glPerformanceList]
+    .filter((g) => g.evaluatedCount > 0)
+    .sort((a, b) => a.avgScore - b.avgScore);
+
+  // Equipment Category Performance Averages
+  const equipmentStats: Record<string, { sum: number; count: number }> = {};
+  filteredScores.forEach((item) => {
+    if (item.employee.category === 'Operator' && item.employee.equipmentType && item.hasReport) {
+      const eq = item.employee.equipmentType;
+      if (!equipmentStats[eq]) equipmentStats[eq] = { sum: 0, count: 0 };
+      equipmentStats[eq].sum += item.score;
+      equipmentStats[eq].count += 1;
+    }
+  });
+
+  const equipmentAverages = Object.entries(equipmentStats).map(([eq, data]) => ({
+    equipment: eq,
+    average: Number((data.sum / data.count).toFixed(2)),
+    count: data.count,
+  })).sort((a, b) => b.average - a.average);
+
+  // Department Performance Averages
+  const deptStats: Record<string, { sum: number; count: number }> = {};
+  filteredScores.forEach((item) => {
+    if (item.hasReport) {
+      const d = item.employee.department;
+      if (!deptStats[d]) deptStats[d] = { sum: 0, count: 0 };
+      deptStats[d].sum += item.score;
+      deptStats[d].count += 1;
+    }
+  });
+
+  const deptAverages = Object.entries(deptStats).map(([dept, data]) => ({
+    department: dept,
+    average: Number((data.sum / data.count).toFixed(2)),
+    count: data.count,
+  })).sort((a, b) => b.average - a.average);
+
+  // Excel Export Handler
+  const exportExecutiveAnalyticsExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    const top10Data = top10Best.map((item, idx) => ({
+      Rangking: idx + 1,
+      NIK: item.employee.nik,
+      Nama: item.employee.name,
+      Kategori: item.employee.category,
+      Alat_Berat: item.employee.equipmentType || '-',
+      Area_Kerja: item.employee.department,
+      Group_Leader: item.employee.groupLeaderName || '-',
+      Skor_MER: item.score,
+    }));
+
+    const bottom10Data = top10Worst.map((item, idx) => ({
+      Rangking_Bawah: idx + 1,
+      NIK: item.employee.nik,
+      Nama: item.employee.name,
+      Kategori: item.employee.category,
+      Alat_Berat: item.employee.equipmentType || '-',
+      Area_Kerja: item.employee.department,
+      Group_Leader: item.employee.groupLeaderName || '-',
+      Skor_MER: item.score,
+    }));
+
+    const glLowestData = lowestAvgGroupLeaders.map((item, idx) => ({
+      Rangking_GL_Terendah: idx + 1,
+      NIK_GL: item.gl.nik,
+      Nama_GL: item.gl.name,
+      Departemen: item.gl.department,
+      Total_Subordinat: item.totalSubsCount,
+      Subordinat_Terapresiasi: item.evaluatedCount,
+      Rata_Rata_Rapor_Tim: item.avgScore,
+    }));
+
+    const wsTop = XLSX.utils.json_to_sheet(top10Data);
+    const wsBottom = XLSX.utils.json_to_sheet(bottom10Data);
+    const wsGL = XLSX.utils.json_to_sheet(glLowestData);
+
+    XLSX.utils.book_append_sheet(wb, wsTop, 'Top 10 Best Employees');
+    XLSX.utils.book_append_sheet(wb, wsBottom, 'Top 10 Needs Coaching');
+    XLSX.utils.book_append_sheet(wb, wsGL, 'Rata-Rata Tim GL Terendah');
+
+    XLSX.writeFile(wb, `Dashboard_MER_${analyticsMode}_${selectedPeriod}.xlsx`);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Controls Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800 shadow-sm">
+        <div className="flex items-center space-x-2">
+          <BarChart3 className="w-5 h-5 text-blue-600" />
+          <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
+            Dashboard MER
+          </h3>
+        </div>
+
+        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+          {/* Monthly vs YTD Toggle */}
+          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center">
+            <button
+              onClick={() => setAnalyticsMode('MONTHLY')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                analyticsMode === 'MONTHLY'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Monthly ({formatPeriodLabel(selectedPeriod)})
+            </button>
+            <button
+              onClick={() => setAnalyticsMode('YTD')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                analyticsMode === 'YTD'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              YTD 2026
+            </button>
+          </div>
+
+          {/* Category Filter */}
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-blue-600 shrink-0" />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as any)}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+            >
+              <option value="ALL">Semua Kategori</option>
+              <option value="Operator">Operator</option>
+              <option value="Nonom">Nonom</option>
+            </select>
+          </div>
+
+          {/* Export Excel Button */}
+          <button
+            onClick={exportExecutiveAnalyticsExcel}
+            className="bg-white hover:bg-slate-50 text-blue-600 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Analytics XLSX</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Analytics Section: Pie Chart Distribution & Lowest GL Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pie Chart: Distribution of MER Scores */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <PieChartIcon className="w-5 h-5 text-blue-600" />
+              <h3 className="font-bold text-base text-slate-800">
+                Persebaran Nilai MER ({analyticsMode})
+              </h3>
+            </div>
+            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-bold">
+              TOTAL: {totalEvaluated} KARYAWAN
+            </span>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Pie Chart Visualization */}
+            <div className="w-full md:w-1/2 h-52">
+              {totalEvaluated > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: any, name: any, item: any) => [
+                        `${value} Orang (${item.payload.percentage}%)`,
+                        item.payload.label,
+                      ]}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#e2e8f0',
+                        borderRadius: '0.75rem',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  Belum ada data evaluasi
+                </div>
+              )}
+            </div>
+
+            {/* Score Bins Percentage Table */}
+            <div className="w-full md:w-1/2 space-y-2">
+              {pieChartData.map((bin) => (
+                <div
+                  key={bin.name}
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: bin.color }}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 truncate">
+                        {bin.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {bin.label}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="font-extrabold text-slate-900 block">
+                      {bin.percentage}%
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {bin.value} Orang
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Lowest Average MER Group Leaders */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <h3 className="font-bold text-base text-slate-800">
+                Group Leader Rata-Rata Tim Terendah
+              </h3>
+            </div>
+            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">
+              EVALUASI TIM GL
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {lowestAvgGroupLeaders.map((item, idx) => {
+              const badge = getScoreCategoryBadge(item.avgScore);
+              return (
+                <div
+                  key={item.gl.id}
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <span className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 font-black text-xs flex items-center justify-center shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">
+                        {item.gl.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        NIK: {item.gl.nik} • Area Kerja: {item.gl.department}
+                      </p>
+                      <p className="text-[10px] text-blue-600 font-medium truncate mt-0.5">
+                        Anggota Dievaluasi: {item.evaluatedCount} / {item.totalSubsCount} Subordinat
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="text-base font-black text-rose-600 block">
+                      {item.avgScore.toFixed(2)}
+                    </span>
+                    <span
+                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                    >
+                      {badge.label.split(' ')[0]}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {lowestAvgGroupLeaders.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-8">
+                Belum ada data evaluasi Group Leader pada periode ini.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Leaderboards Grid (Top 10 Best vs Top 10 Worst) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top 10 Best Employees */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <Award className="w-5 h-5 text-emerald-600" />
+              <h3 className="font-bold text-base text-slate-800">
+                Top 10 Best Employees ({analyticsMode})
+              </h3>
+            </div>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+              PERFORMA TERTINGGI
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {top10Best.map((item, idx) => {
+              const badge = getScoreCategoryBadge(item.score);
+              return (
+                <div
+                  key={item.employee.id}
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <span
+                      className={`w-6 h-6 rounded-md font-black text-xs flex items-center justify-center shrink-0 ${
+                        idx === 0
+                          ? 'bg-amber-400 text-slate-950'
+                          : idx === 1
+                          ? 'bg-slate-300 text-slate-950'
+                          : idx === 2
+                          ? 'bg-amber-700 text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      #{idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">
+                        {item.employee.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {item.employee.category}{' '}
+                        {item.employee.equipmentType ? `(${item.employee.equipmentType})` : ''}{' '}
+                        • GL: {item.employee.groupLeaderName}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="text-base font-black text-emerald-600">
+                      {item.score.toFixed(2)}
+                    </span>
+                    <span
+                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                    >
+                      {badge.label.split(' ')[0]}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {top10Best.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-6">
+                Belum ada data nilai pada periode ini.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Top 10 Needs Coaching / Lowest Scores */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2">
+              <AlertOctagon className="w-5 h-5 text-rose-600" />
+              <h3 className="font-bold text-base text-slate-800">
+                Top 10 Needs Coaching ({analyticsMode})
+              </h3>
+            </div>
+            <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
+              PERLU EVALUASI
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {top10Worst.map((item, idx) => {
+              const badge = getScoreCategoryBadge(item.score);
+              return (
+                <div
+                  key={item.employee.id}
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <span className="w-6 h-6 rounded-md bg-rose-100 text-rose-700 font-black text-xs flex items-center justify-center shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">
+                        {item.employee.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {item.employee.category}{' '}
+                        {item.employee.equipmentType ? `(${item.employee.equipmentType})` : ''}{' '}
+                        • GL: {item.employee.groupLeaderName}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="text-base font-black text-rose-600">
+                      {item.score.toFixed(2)}
+                    </span>
+                    <span
+                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                    >
+                      {badge.label.split(' ')[0]}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {top10Worst.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-6">
+                Belum ada data nilai pada periode ini.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Admin Horizontal YTD MER Matrix Table */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 text-slate-800 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center space-x-2">
+              <FileSpreadsheet className="w-5 h-5 text-blue-600 shrink-0" />
+              <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
+                Tabel MER YTD
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Rekapitulasi perolehan nilai akhir MER bulanan (Januari - Desember 2026) dan Rerata YTD untuk seluruh anggota subordinat
+            </p>
+          </div>
+
+          <div className="text-xs text-slate-500 font-semibold bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            Total Subordinat: <strong className="text-slate-900">{subEmployees.length} Orang</strong>
+          </div>
+        </div>
+
+        {/* Horizontal Table Container */}
+        <div className="overflow-x-auto rounded-xl border border-slate-200/80 shadow-2xl">
+          <table className="w-full text-left text-xs border-collapse min-w-[1100px]">
+            <thead>
+              <tr className="bg-slate-900 text-slate-100 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-800">
+                <th className="py-3 px-3 text-center w-10">No.</th>
+                <th className="py-3 px-4 min-w-[180px]">Subordinat / NIK</th>
+                <th className="py-3 px-3 min-w-[130px]">Group Leader</th>
+                <th className="py-3 px-2 text-center">Jan</th>
+                <th className="py-3 px-2 text-center">Feb</th>
+                <th className="py-3 px-2 text-center">Mar</th>
+                <th className="py-3 px-2 text-center">Apr</th>
+                <th className="py-3 px-2 text-center">Mei</th>
+                <th className="py-3 px-2 text-center">Jun</th>
+                <th className="py-3 px-2 text-center">Jul</th>
+                <th className="py-3 px-2 text-center">Agu</th>
+                <th className="py-3 px-2 text-center">Sep</th>
+                <th className="py-3 px-2 text-center">Okt</th>
+                <th className="py-3 px-2 text-center">Nov</th>
+                <th className="py-3 px-2 text-center">Des</th>
+                <th className="py-3 px-3 text-center bg-blue-900 text-white min-w-[90px]">Rerata YTD</th>
+                <th className="py-3 px-4 text-center min-w-[130px]">Status YTD</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200/80 bg-white">
+              {subEmployees.map((sub, idx) => {
+                const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+                const monthlyScores: (number | null)[] = months.map((m) => {
+                  const rep = reports.find(
+                    (r) => r.nik === sub.nik && r.period === `2026-${m}`
+                  );
+                  return rep ? rep.finalScore : null;
+                });
+
+                const validScores = monthlyScores.filter((s): s is number => s !== null);
+                const ytdAvg =
+                  validScores.length > 0
+                    ? validScores.reduce((acc, curr) => acc + curr, 0) / validScores.length
+                    : 0;
+
+                const badge = getScoreCategoryBadge(ytdAvg);
+                const isExpanded = selectedYtdSubNik === sub.nik;
+
+                return (
+                  <React.Fragment key={sub.id}>
+                    <tr
+                      onClick={() =>
+                        setSelectedYtdSubNik(isExpanded ? '' : sub.nik)
+                      }
+                      className={`hover:bg-blue-50/60 transition-colors cursor-pointer ${
+                        idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                      } ${isExpanded ? 'bg-blue-50/90 font-medium' : ''}`}
+                    >
+                      <td className="py-3 px-3 text-center font-bold text-slate-400">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-extrabold text-slate-900 leading-tight">
+                          {sub.name}
+                        </div>
+                        <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mt-0.5">
+                          <span className="font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded font-bold">
+                            {sub.nik}
+                          </span>
+                          <span>•</span>
+                          <span>{sub.category}</span>
+                          {sub.equipmentType && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-600 font-medium">{sub.equipmentType}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-700 text-[11px]">
+                        {sub.groupLeaderName || '-'}
+                      </td>
+
+                      {/* 12 Months Scores */}
+                      {monthlyScores.map((score, mIdx) => (
+                        <td
+                          key={mIdx}
+                          className="py-3 px-1.5 text-center font-bold text-[11px]"
+                        >
+                          {score !== null ? (
+                            <span
+                              className={
+                                score >= 3.25
+                                  ? 'text-emerald-700'
+                                  : score >= 2.5
+                                  ? 'text-blue-700'
+                                  : score >= 1.75
+                                  ? 'text-amber-700'
+                                  : 'text-rose-700'
+                              }
+                            >
+                              {score.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                      ))}
+
+                      {/* YTD Average Column */}
+                      <td className="py-3 px-3 text-center font-black text-xs bg-blue-50/80 text-blue-900 border-x border-blue-200">
+                        {ytdAvg > 0 ? ytdAvg.toFixed(2) : '0.00'}
+                      </td>
+
+                      {/* YTD Badge Column */}
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${badge.badgeClass}`}
+                        >
+                          {badge.label.split(' ')[0]}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Expandable YTD Parameter Detail Row */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={17} className="p-4 bg-slate-100/90 border-b-2 border-blue-500">
+                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                              <h4 className="font-extrabold text-sm text-blue-900 flex items-center space-x-2">
+                                <span>Detail Nilai Parameter YTD Transparan:</span>
+                                <span className="text-slate-900">{sub.name} (NIK: {sub.nik})</span>
+                              </h4>
+                              <button
+                                onClick={() => setSelectedYtdSubNik('')}
+                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold"
+                              >
+                                Tutup Detail
+                              </button>
+                            </div>
+
+                            <YtdParameterTable
+                              employee={sub}
+                              reports={reports}
+                              operatorParameters={operatorParameters}
+                              nonomParameters={nonomParameters}
+                              selectedYear="2026"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
