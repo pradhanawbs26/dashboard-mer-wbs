@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield/Hexagon -->
+  <rect width="512" height="512" rx="110" fill="url(#grad2)" />
+  <path d="M256 50 L420 120 V270 C420 380 256 460 256 460 C256 460 92 380 92 270 V120 Z" fill="none" stroke="url(#grad1)" stroke-width="20" />
+  
+  <!-- WBS Emblem Shape -->
+  <path d="M160 170 L210 330 L256 220 L302 330 L352 170" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M175 190 L210 310 L256 210 L302 310 L337 190" fill="none" stroke="url(#grad1)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Crown / Star Accent -->
+  <circle cx="256" cy="130" r="18" fill="url(#grad1)" />
+</svg>

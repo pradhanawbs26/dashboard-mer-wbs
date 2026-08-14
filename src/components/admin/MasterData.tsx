@@ -24,10 +24,20 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 
 export const MasterData: React.FC = () => {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, bulkImportEmployees } = useApp();
+  const {
+    employees,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    bulkImportEmployees,
+    isSyncingFirebase,
+    syncAllDataToFirebase,
+  } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
@@ -41,6 +51,7 @@ export const MasterData: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [parsedEmployees, setParsedEmployees] = useState<(Omit<Employee, 'id'> & { isUpdate?: boolean })[]>([]);
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState<string | null>(null);
+  const [syncStatusMsg, setSyncStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // State to toggle password visibility in table per employee ID
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
@@ -88,8 +99,8 @@ export const MasterData: React.FC = () => {
         Kategori: 'Operator',
         Tipe_Alat_Berat: 'Excavator',
         Departemen_Sektor: 'CY',
-        Jabatan: 'Operator Heavy Machinery',
-        NIK_Group_Leader: '1001',
+        Jabatan: 'Operator Excavator',
+        NIK_Atasan: '1001',
       },
       {
         NIK: '1011',
@@ -98,9 +109,9 @@ export const MasterData: React.FC = () => {
         Peran_Role: 'subordinate',
         Kategori: 'Operator',
         Tipe_Alat_Berat: 'Dump Truck',
-        Departemen_Sektor: 'CY',
-        Jabatan: 'Operator Heavy Machinery',
-        NIK_Group_Leader: '1001',
+        Departemen_Sektor: 'Hauling',
+        Jabatan: 'Driver DT Hauling',
+        NIK_Atasan: '1002',
       },
       {
         NIK: '3005',
@@ -109,20 +120,31 @@ export const MasterData: React.FC = () => {
         Peran_Role: 'subordinate',
         Kategori: 'Nonom',
         Tipe_Alat_Berat: '',
-        Departemen_Sektor: 'Maint',
-        Jabatan: 'Mechanic Maintenance',
-        NIK_Group_Leader: '1002',
+        Departemen_Sektor: 'Stockpile',
+        Jabatan: 'Checker Stockpile',
+        NIK_Atasan: '1003',
       },
       {
-        NIK: '1004',
+        NIK: '1001',
         Nama_Karyawan: 'Dharmawan Kustanto',
         Password: '123456',
         Peran_Role: 'group_leader',
-        Kategori: 'Operator',
-        Tipe_Alat_Berat: 'Excavator',
+        Kategori: '',
+        Tipe_Alat_Berat: '',
         Departemen_Sektor: 'CY',
         Jabatan: 'Group Leader CY',
-        NIK_Group_Leader: '1000',
+        NIK_Atasan: '1000',
+      },
+      {
+        NIK: '1000',
+        Nama_Karyawan: 'Bambang Supriyanto',
+        Password: '123456',
+        Peran_Role: 'head_coach',
+        Kategori: '',
+        Tipe_Alat_Berat: '',
+        Departemen_Sektor: 'CY',
+        Jabatan: 'Head Coach Operasional CY & Hauling',
+        NIK_Atasan: '',
       },
     ];
 
@@ -135,7 +157,7 @@ export const MasterData: React.FC = () => {
       { wch: 12 },
       { wch: 18 },
       { wch: 18 },
-      { wch: 26 },
+      { wch: 28 },
       { wch: 18 },
     ];
 
@@ -165,7 +187,8 @@ export const MasterData: React.FC = () => {
           return;
         }
 
-        const groupLeadersList = employees.filter((emp) => emp.role === 'group_leader' || emp.role === 'head_coach');
+        const headCoachesList = employees.filter((emp) => emp.role === 'head_coach');
+        const groupLeadersList = employees.filter((emp) => emp.role === 'group_leader');
 
         const parsed: (Omit<Employee, 'id'> & { isUpdate?: boolean })[] = [];
 
@@ -180,15 +203,18 @@ export const MasterData: React.FC = () => {
           const roleRaw = String(row['Peran_Role'] || row['Role'] || row['role'] || 'subordinate').toLowerCase();
           let role: UserRole = 'subordinate';
           if (roleRaw.includes('admin')) role = 'admin';
-          else if (roleRaw.includes('group') || roleRaw.includes('leader')) role = 'group_leader';
           else if (roleRaw.includes('head') || roleRaw.includes('coach')) role = 'head_coach';
+          else if (roleRaw.includes('group') || roleRaw.includes('leader')) role = 'group_leader';
 
           const categoryRaw = String(row['Kategori'] || row['category'] || 'Operator').toLowerCase();
-          const category: SubordinateCategory = categoryRaw.includes('nonom') || categoryRaw.includes('non') ? 'Nonom' : 'Operator';
+          const category: SubordinateCategory =
+            role === 'subordinate' && (categoryRaw.includes('nonom') || categoryRaw.includes('non'))
+              ? 'Nonom'
+              : 'Operator';
 
           const equipmentTypeRaw = String(row['Tipe_Alat_Berat'] || row['Alat'] || row['equipmentType'] || 'Excavator');
           let equipmentType: HeavyEquipmentType | undefined = undefined;
-          if (category === 'Operator') {
+          if (role === 'subordinate' && category === 'Operator') {
             const matchedEq = HEAVY_EQUIPMENT_LIST.find((eq) => eq.toLowerCase() === equipmentTypeRaw.toLowerCase());
             equipmentType = (matchedEq as HeavyEquipmentType) || 'Excavator';
           }
@@ -197,12 +223,27 @@ export const MasterData: React.FC = () => {
           const position = String(
             row['Jabatan'] ||
             row['position'] ||
-            (category === 'Operator' ? `Operator ${equipmentType || 'Alat'}` : 'Karyawan Non-Operator')
+            (role === 'group_leader'
+              ? `Group Leader ${department}`
+              : role === 'head_coach'
+              ? `Head Coach ${department}`
+              : category === 'Operator'
+              ? `Operator ${equipmentType || 'Alat'}`
+              : 'Karyawan Non-Operator')
           );
 
-          const glNik = String(row['NIK_Group_Leader'] || row['GroupLeaderId'] || row['glNik'] || '').trim();
-          const matchedGl = groupLeadersList.find((g) => g.nik === glNik);
-          const groupLeaderName = matchedGl ? matchedGl.name : undefined;
+          const atasanNik = String(
+            row['NIK_Atasan'] || row['NIK_Group_Leader'] || row['GroupLeaderId'] || row['glNik'] || ''
+          ).trim();
+
+          let groupLeaderName: string | undefined = undefined;
+          if (role === 'group_leader') {
+            const matchedHc = headCoachesList.find((hc) => hc.nik === atasanNik);
+            groupLeaderName = matchedHc ? matchedHc.name : undefined;
+          } else if (role === 'subordinate') {
+            const matchedGl = groupLeadersList.find((g) => g.nik === atasanNik);
+            groupLeaderName = matchedGl ? matchedGl.name : undefined;
+          }
 
           const isExisting = employees.some((e) => e.nik === nik);
 
@@ -211,11 +252,11 @@ export const MasterData: React.FC = () => {
             name,
             password,
             role,
-            category,
+            category: role === 'subordinate' ? category : 'Nonom',
             equipmentType,
             department,
             position,
-            groupLeaderId: glNik || undefined,
+            groupLeaderId: role === 'subordinate' || role === 'group_leader' ? atasanNik || undefined : undefined,
             groupLeaderName,
             isUpdate: isExisting,
           });
@@ -234,20 +275,81 @@ export const MasterData: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (parsedEmployees.length === 0) return;
 
-    bulkImportEmployees(parsedEmployees);
-    setUploadSuccessMessage(`Berhasil mengunggah & memperbarui ${parsedEmployees.length} data karyawan!`);
+    await bulkImportEmployees(parsedEmployees);
+    setUploadSuccessMessage(`Berhasil mengunggah & menyinkronkan ${parsedEmployees.length} data karyawan ke sistem & database cloud (Firebase)!`);
     setParsedEmployees([]);
     setTimeout(() => {
       setShowUploadModal(false);
       setUploadSuccessMessage(null);
-    }, 1200);
+    }, 1500);
   };
 
   const groupLeaders = employees.filter((e) => e.role === 'group_leader');
   const headCoaches = employees.filter((e) => e.role === 'head_coach');
+
+  const handleRoleChange = (newRole: UserRole) => {
+    setFormData((prev) => {
+      let newCategory: SubordinateCategory = prev.category;
+      let newPosition = prev.position;
+      let newGlId = prev.groupLeaderId;
+      let newEquipment = prev.equipmentType;
+      let newDepartment = prev.department;
+
+      if (newRole === 'group_leader') {
+        newCategory = 'Nonom';
+        newEquipment = undefined;
+        newPosition =
+          !prev.position ||
+          prev.position.includes('Operator') ||
+          prev.position.includes('Head Coach') ||
+          prev.position.includes('Administrator')
+            ? `Group Leader ${newDepartment}`
+            : prev.position;
+        newGlId = headCoaches[0]?.nik || '';
+      } else if (newRole === 'head_coach') {
+        newCategory = 'Nonom';
+        newEquipment = undefined;
+        newPosition =
+          !prev.position ||
+          prev.position.includes('Operator') ||
+          prev.position.includes('Group Leader') ||
+          prev.position.includes('Administrator')
+            ? `Head Coach ${newDepartment}`
+            : prev.position;
+        newGlId = '';
+      } else if (newRole === 'admin') {
+        newCategory = 'Nonom';
+        newEquipment = undefined;
+        newDepartment = 'Management';
+        newPosition = 'Administrator Sistem';
+        newGlId = '';
+      } else if (newRole === 'subordinate') {
+        newCategory = 'Operator';
+        newEquipment = 'Excavator';
+        newPosition =
+          !prev.position ||
+          prev.position.includes('Group Leader') ||
+          prev.position.includes('Head Coach') ||
+          prev.position.includes('Administrator')
+            ? 'Operator Heavy Machinery'
+            : prev.position;
+        newGlId = groupLeaders[0]?.nik || '';
+      }
+
+      return {
+        ...prev,
+        role: newRole,
+        category: newCategory,
+        position: newPosition,
+        groupLeaderId: newGlId,
+        equipmentType: newEquipment,
+        department: newDepartment,
+      };
+    });
+  };
 
   const openAddModal = () => {
     setEditingEmp(null);
@@ -262,6 +364,7 @@ export const MasterData: React.FC = () => {
       groupLeaderId: groupLeaders[0]?.nik || '',
       position: 'Operator Heavy Machinery',
     });
+    setShowModalPassword(false);
     setShowModal(true);
   };
 
@@ -278,30 +381,45 @@ export const MasterData: React.FC = () => {
       groupLeaderId: emp.groupLeaderId || '',
       position: emp.position,
     });
+    setShowModalPassword(false);
     setShowModal(true);
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const selectedAtasan =
-      formData.role === 'group_leader'
-        ? headCoaches.find((hc) => hc.nik === formData.groupLeaderId)
-        : groupLeaders.find((g) => g.nik === formData.groupLeaderId);
+    let atasanName: string | undefined = undefined;
+    let finalGroupLeaderId = formData.groupLeaderId;
 
-    const atasanName = selectedAtasan ? selectedAtasan.name : undefined;
+    if (formData.role === 'group_leader') {
+      const selectedHc = headCoaches.find((hc) => hc.nik === formData.groupLeaderId);
+      atasanName = selectedHc ? selectedHc.name : undefined;
+    } else if (formData.role === 'subordinate') {
+      const selectedGl = groupLeaders.find((g) => g.nik === formData.groupLeaderId);
+      atasanName = selectedGl ? selectedGl.name : undefined;
+    } else {
+      finalGroupLeaderId = undefined;
+      atasanName = undefined;
+    }
+
+    const payload = {
+      ...formData,
+      groupLeaderId: finalGroupLeaderId || undefined,
+      groupLeaderName: atasanName,
+      category: formData.role === 'subordinate' ? formData.category : ('Nonom' as SubordinateCategory),
+      equipmentType:
+        formData.role === 'subordinate' && formData.category === 'Operator'
+          ? formData.equipmentType
+          : undefined,
+    };
 
     if (editingEmp) {
       updateEmployee({
         ...editingEmp,
-        ...formData,
-        groupLeaderName: atasanName,
+        ...payload,
       });
     } else {
-      addEmployee({
-        ...formData,
-        groupLeaderName: atasanName,
-      });
+      addEmployee(payload);
     }
 
     setShowModal(false);
@@ -343,6 +461,32 @@ export const MasterData: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <button
+            onClick={async () => {
+              setSyncStatusMsg(null);
+              const res = await syncAllDataToFirebase();
+              setSyncStatusMsg({
+                type: res.success ? 'success' : 'error',
+                text: res.message,
+              });
+              setTimeout(() => setSyncStatusMsg(null), 7000);
+            }}
+            disabled={isSyncingFirebase}
+            className={`${
+              isSyncingFirebase
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 cursor-pointer'
+            } border font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center space-x-2 transition-all`}
+            title="Sinkronkan seluruh data karyawan saat ini ke database Firebase Firestore"
+          >
+            {isSyncingFirebase ? (
+              <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4 text-indigo-600" />
+            )}
+            <span>{isSyncingFirebase ? 'Menyinkronkan...' : 'Sinkron ke Cloud (Firebase)'}</span>
+          </button>
+
+          <button
             onClick={downloadEmployeeTemplate}
             className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
             title="Download Template Format Excel"
@@ -374,6 +518,32 @@ export const MasterData: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Sync Notification Banner */}
+      {syncStatusMsg && (
+        <div
+          className={`p-4 rounded-xl text-xs flex items-center justify-between transition-all ${
+            syncStatusMsg.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          <div className="flex items-center space-x-2.5">
+            {syncStatusMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="font-semibold">{syncStatusMsg.text}</span>
+          </div>
+          <button
+            onClick={() => setSyncStatusMsg(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -614,144 +784,304 @@ export const MasterData: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
-                    Peran (Role):
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) =>
-                      setFormData({ ...formData, role: e.target.value as UserRole })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    <option value="subordinate">Subordinate</option>
-                    <option value="group_leader">Group Leader</option>
-                    <option value="head_coach">Head Coach</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
-                    Kategori MER:
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        category: e.target.value as SubordinateCategory,
-                      })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    <option value="Operator">Operator</option>
-                    <option value="Nonom">Nonom (Non Operator)</option>
-                  </select>
-                </div>
-              </div>
-
-              {formData.category === 'Operator' && (
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
-                    Tipe Pengoperasian Alat Berat:
-                  </label>
-                  <select
-                    value={formData.equipmentType}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        equipmentType: e.target.value as HeavyEquipmentType,
-                      })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    {HEAVY_EQUIPMENT_LIST.map((eq) => (
-                      <option key={eq} value={eq}>
-                        {eq}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
+              {/* Peran / Role Selector */}
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">
-                  Area Kerja:
+                  Peran Akun (Role):
                 </label>
                 <select
-                  value={formData.department}
-                  onChange={(e) =>
-                    setFormData({ ...formData, department: e.target.value })
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                  value={formData.role}
+                  onChange={(e) => handleRoleChange(e.target.value as UserRole)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-medium focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
-                  {WORK_AREAS.map((area) => (
-                    <option key={area} value={area}>
-                      {area}
-                    </option>
-                  ))}
+                  <option value="subordinate">Subordinate (Operator & Non-OM)</option>
+                  <option value="group_leader">Group Leader (Pengawas Lapangan)</option>
+                  <option value="head_coach">Head Coach (Pembina / Managerial)</option>
+                  <option value="admin">Admin (Administrator Sistem)</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-semibold mb-1">
-                  Jabatan / Position:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.position}
-                  onChange={(e) =>
-                    setFormData({ ...formData, position: e.target.value })
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600"
-                />
-              </div>
-
+              {/* KHUSUS SUBORDINATE: Kategori MER & Tipe Alat */}
               {formData.role === 'subordinate' && (
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
-                    Atasan Direct (Group Leader):
-                  </label>
-                  <select
-                    value={formData.groupLeaderId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, groupLeaderId: e.target.value })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    <option value="">-- Pilih Group Leader --</option>
-                    {groupLeaders.map((gl) => (
-                      <option key={gl.id} value={gl.nik}>
-                        {gl.name} (NIK: {gl.nik})
-                      </option>
-                    ))}
-                  </select>
+                <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">
+                        Kategori MER:
+                      </label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => {
+                          const cat = e.target.value as SubordinateCategory;
+                          setFormData({
+                            ...formData,
+                            category: cat,
+                            equipmentType: cat === 'Operator' ? 'Excavator' : undefined,
+                            position:
+                              cat === 'Operator'
+                                ? 'Operator Excavator'
+                                : 'Karyawan Non-Operator',
+                          });
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                      >
+                        <option value="Operator">Operator (Alat Berat)</option>
+                        <option value="Nonom">Nonom (Non-Operator / Staff / Helper)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">
+                        Area Kerja:
+                      </label>
+                      <select
+                        value={formData.department}
+                        onChange={(e) =>
+                          setFormData({ ...formData, department: e.target.value })
+                        }
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                      >
+                        {WORK_AREAS.map((area) => (
+                          <option key={area} value={area}>
+                            {area}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {formData.category === 'Operator' && (
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">
+                        Tipe Pengoperasian Alat Berat:
+                      </label>
+                      <select
+                        value={formData.equipmentType}
+                        onChange={(e) => {
+                          const eq = e.target.value as HeavyEquipmentType;
+                          setFormData({
+                            ...formData,
+                            equipmentType: eq,
+                            position: `Operator ${eq}`,
+                          });
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                      >
+                        {HEAVY_EQUIPMENT_LIST.map((eq) => (
+                          <option key={eq} value={eq}>
+                            {eq}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Jabatan / Posisi Kerja:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.position}
+                      onChange={(e) =>
+                        setFormData({ ...formData, position: e.target.value })
+                      }
+                      placeholder="Contoh: Operator Excavator, Helper CY, dll."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Atasan Langsung (Group Leader):
+                    </label>
+                    <select
+                      value={formData.groupLeaderId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, groupLeaderId: e.target.value })
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                    >
+                      <option value="">-- Pilih Group Leader Pembina --</option>
+                      {groupLeaders.map((gl) => (
+                        <option key={gl.id} value={gl.nik}>
+                          {gl.name} (NIK: {gl.nik}) - Area: {gl.department}
+                        </option>
+                      ))}
+                    </select>
+                    {groupLeaders.length === 0 && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        * Belum ada data Group Leader terdaftar. Anda dapat menambahkannya nanti.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
+              {/* KHUSUS GROUP LEADER */}
               {formData.role === 'group_leader' && (
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
-                    Atasan Direct (Head Coach):
-                  </label>
-                  <select
-                    value={formData.groupLeaderId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, groupLeaderId: e.target.value })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    <option value="">-- Pilih Head Coach --</option>
-                    {headCoaches.map((hc) => (
-                      <option key={hc.id} value={hc.nik}>
-                        {hc.name} (NIK: {hc.nik})
-                      </option>
-                    ))}
-                  </select>
+                <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3 space-y-3">
+                  <div className="flex items-center space-x-2 text-blue-800 font-bold">
+                    <ShieldCheck className="w-4 h-4 text-blue-600" />
+                    <span>Konfigurasi Group Leader</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Area Kerja / Sektor Pengawasan:
+                    </label>
+                    <select
+                      value={formData.department}
+                      onChange={(e) => {
+                        const dept = e.target.value;
+                        setFormData({
+                          ...formData,
+                          department: dept,
+                          position: `Group Leader ${dept}`,
+                        });
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                    >
+                      {WORK_AREAS.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Jabatan / Posisi:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.position}
+                      onChange={(e) =>
+                        setFormData({ ...formData, position: e.target.value })
+                      }
+                      placeholder="Contoh: Group Leader CY, Group Leader Hauling"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Head Coach (Atasan Langsung / Pembina):
+                    </label>
+                    <select
+                      value={formData.groupLeaderId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, groupLeaderId: e.target.value })
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                    >
+                      <option value="">-- Pilih Head Coach Pembina --</option>
+                      {headCoaches.map((hc) => (
+                        <option key={hc.id} value={hc.nik}>
+                          {hc.name} (NIK: {hc.nik}) - Area: {hc.department}
+                        </option>
+                      ))}
+                    </select>
+                    {headCoaches.length === 0 && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        * Belum ada Head Coach terdaftar. Anda dapat menambahkan Head Coach terlebih dahulu atau mengaturnya nanti.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* KHUSUS HEAD COACH */}
+              {formData.role === 'head_coach' && (
+                <div className="bg-purple-50/60 border border-purple-200 rounded-xl p-3 space-y-3">
+                  <div className="flex items-center space-x-2 text-purple-800 font-bold">
+                    <Award className="w-4 h-4 text-purple-600" />
+                    <span>Konfigurasi Head Coach</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Area Kerja / Sektor Pembinaan:
+                    </label>
+                    <select
+                      value={formData.department}
+                      onChange={(e) => {
+                        const dept = e.target.value;
+                        setFormData({
+                          ...formData,
+                          department: dept,
+                          position: `Head Coach ${dept}`,
+                        });
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-purple-600 cursor-pointer"
+                    >
+                      <option value="All Area">All Area (Seluruh Sektor)</option>
+                      {WORK_AREAS.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Jabatan / Posisi:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.position}
+                      onChange={(e) =>
+                        setFormData({ ...formData, position: e.target.value })
+                      }
+                      placeholder="Contoh: Head Coach Operasional & Produksi"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* KHUSUS ADMIN */}
+              {formData.role === 'admin' && (
+                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 space-y-3">
+                  <div className="flex items-center space-x-2 text-amber-800 font-bold">
+                    <Building className="w-4 h-4 text-amber-600" />
+                    <span>Konfigurasi Administrator</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Departemen / Divisi:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.department}
+                      onChange={(e) =>
+                        setFormData({ ...formData, department: e.target.value })
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-amber-600"
+                      placeholder="Management / IT"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Jabatan:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.position}
+                      onChange={(e) =>
+                        setFormData({ ...formData, position: e.target.value })
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-amber-600"
+                      placeholder="Administrator Sistem"
+                    />
+                  </div>
                 </div>
               )}
 

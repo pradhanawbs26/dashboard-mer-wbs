@@ -16,6 +16,19 @@ import {
   DEFAULT_MERIT_RULES,
   DEFAULT_DEMERIT_RULES,
 } from '../utils/calculations';
+import {
+  isFirebaseConfigured,
+  fetchEmployeesFromFirebase,
+  fetchReportsFromFirebase,
+  fetchSettingsFromFirebase,
+  saveEmployeeToFirebase,
+  deleteEmployeeFromFirebase,
+  saveBulkEmployeesToFirebase,
+  saveReportToFirebase,
+  deleteReportFromFirebase,
+  saveBulkReportsToFirebase,
+  saveSettingToFirebase,
+} from '../lib/firebase';
 
 interface AppContextType {
   currentUser: Employee | null;
@@ -34,17 +47,21 @@ interface AppContextType {
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateEmployee: (emp: Employee) => void;
   deleteEmployee: (id: string) => void;
-  bulkImportEmployees: (newEmps: (Omit<Employee, 'id'> | Employee)[]) => void;
+  bulkImportEmployees: (newEmps: (Omit<Employee, 'id'> | Employee)[]) => Promise<boolean>;
   // Reports CRUD & Bulk
   saveMonthlyReport: (report: MonthlyReport) => void;
   deleteMonthlyReport: (id: string) => void;
-  bulkImportReports: (newReports: MonthlyReport[]) => void;
+  bulkImportReports: (newReports: MonthlyReport[]) => Promise<boolean>;
   // Parameter Customization Engine
   updateOperatorParameters: (params: DynamicParameter[]) => void;
   updateNonomParameters: (params: DynamicParameter[]) => void;
   updateMeritRules: (rules: MeritRule[]) => void;
   updateDemeritRules: (rules: DemeritRule[]) => void;
   resetAllDataToDefault: () => void;
+  // Cloud Sync
+  isSyncingFirebase: boolean;
+  syncAllDataToFirebase: () => Promise<{ success: boolean; count: number; message: string }>;
+  refreshFromFirebase: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -134,6 +151,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [selectedPeriod, setSelectedPeriod] = useState<string>('2026-08');
 
+  const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
+
+  // Sync with Firebase on mount if configured with smart auto-merge
+  const refreshFromFirebase = async () => {
+    if (!isFirebaseConfigured()) return;
+    setIsSyncingFirebase(true);
+    try {
+      const [fbEmps, fbReports, fbSettings] = await Promise.all([
+        fetchEmployeesFromFirebase(),
+        fetchReportsFromFirebase(),
+        fetchSettingsFromFirebase(),
+      ]);
+
+      if (fbEmps && fbEmps.length > 0) {
+        setEmployees((localEmps) => {
+          // Merge local employees with Firebase to prevent losing newly uploaded local data
+          const existingNiks = new Set(fbEmps.map((e) => e.nik));
+          const localOnly = localEmps.filter((le) => !existingNiks.has(le.nik));
+          
+          if (localOnly.length > 0) {
+            const combined = [...fbEmps, ...localOnly];
+            // Push missing local employees to Firebase in background
+            saveBulkEmployeesToFirebase(combined);
+            return combined;
+          }
+          return fbEmps;
+        });
+      } else {
+        // If Firestore is empty, seed with current local employees
+        setEmployees((localEmps) => {
+          if (localEmps.length > 0) {
+            saveBulkEmployeesToFirebase(localEmps);
+          }
+          return localEmps;
+        });
+      }
+
+      if (fbReports && fbReports.length > 0) {
+        setReports((localReports) => {
+          const existingReportIds = new Set(fbReports.map((r) => r.id || `${r.nik}_${r.period}`));
+          const localOnly = localReports.filter(
+            (lr) => !existingReportIds.has(lr.id || `${lr.nik}_${lr.period}`)
+          );
+          if (localOnly.length > 0) {
+            const combined = [...fbReports, ...localOnly];
+            saveBulkReportsToFirebase(combined);
+            return combined;
+          }
+          return fbReports;
+        });
+      } else {
+        setReports((localReports) => {
+          if (localReports.length > 0) {
+            saveBulkReportsToFirebase(localReports);
+          }
+          return localReports;
+        });
+      }
+
+      if (fbSettings) {
+        if (fbSettings.operatorParameters) setOperatorParameters(fbSettings.operatorParameters);
+        if (fbSettings.nonomParameters) setNonomParameters(fbSettings.nonomParameters);
+        if (fbSettings.meritRules) setMeritRules(fbSettings.meritRules);
+        if (fbSettings.demeritRules) setDemeritRules(fbSettings.demeritRules);
+      }
+    } catch (err) {
+      console.error('Error refreshing from Firebase:', err);
+    } finally {
+      setIsSyncingFirebase(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshFromFirebase();
+  }, []);
+
+  const syncAllDataToFirebase = async (): Promise<{ success: boolean; count: number; message: string }> => {
+    setIsSyncingFirebase(true);
+    try {
+      const empSuccess = await saveBulkEmployeesToFirebase(employees);
+      const repSuccess = await saveBulkReportsToFirebase(reports);
+      await Promise.all([
+        saveSettingToFirebase('operatorParameters', operatorParameters),
+        saveSettingToFirebase('nonomParameters', nonomParameters),
+        saveSettingToFirebase('meritRules', meritRules),
+        saveSettingToFirebase('demeritRules', demeritRules),
+      ]);
+
+      return {
+        success: empSuccess,
+        count: employees.length,
+        message: empSuccess
+          ? `Berhasil menyinkronkan ${employees.length} Karyawan & ${reports.length} Laporan ke Firestore Database`
+          : 'Sinkronisasi gagal, periksa koneksi internet atau security rules Firebase',
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        count: 0,
+        message: `Gagal sinkron: ${err?.message || 'Error tidak diketahui'}`,
+      };
+    } finally {
+      setIsSyncingFirebase(false);
+    }
+  };
+
   // Persistence effects
   useEffect(() => {
     localStorage.setItem('mer_current_user', JSON.stringify(currentUser));
@@ -198,6 +321,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `emp_${Date.now()}`,
     };
     setEmployees((prev) => [...prev, newEmp]);
+    saveEmployeeToFirebase(newEmp);
   };
 
   const updateEmployee = (updatedEmp: Employee) => {
@@ -207,13 +331,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentUser?.nik === updatedEmp.nik) {
       setCurrentUser(updatedEmp);
     }
+    saveEmployeeToFirebase(updatedEmp);
   };
 
   const deleteEmployee = (id: string) => {
     setEmployees((prev) => prev.filter((e) => e.id !== id));
+    deleteEmployeeFromFirebase(id);
   };
 
-  const bulkImportEmployees = (newEmps: (Omit<Employee, 'id'> | Employee)[]) => {
+  const bulkImportEmployees = async (newEmps: (Omit<Employee, 'id'> | Employee)[]): Promise<boolean> => {
+    let itemsToSave: Employee[] = [];
     setEmployees((prev) => {
       const copy = [...prev];
       newEmps.forEach((ne) => {
@@ -223,16 +350,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...copy[existingIdx],
             ...ne,
           };
+          itemsToSave.push(copy[existingIdx]);
         } else {
           const generatedId = (ne as Employee).id || `emp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-          copy.push({
+          const fullEmp = {
             ...ne,
             id: generatedId,
-          } as Employee);
+          } as Employee;
+          copy.push(fullEmp);
+          itemsToSave.push(fullEmp);
         }
       });
       return copy;
     });
+    return await saveBulkEmployeesToFirebase(itemsToSave);
   };
 
   const saveMonthlyReport = (report: MonthlyReport) => {
@@ -246,13 +377,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return [report, ...prev];
       }
     });
+    saveReportToFirebase(report);
   };
 
   const deleteMonthlyReport = (id: string) => {
     setReports((prev) => prev.filter((r) => r.id !== id));
+    deleteReportFromFirebase(id);
   };
 
-  const bulkImportReports = (newReports: MonthlyReport[]) => {
+  const bulkImportReports = async (newReports: MonthlyReport[]): Promise<boolean> => {
     setReports((prev) => {
       const copy = [...prev];
       newReports.forEach((nr) => {
@@ -267,22 +400,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       return copy;
     });
+    return await saveBulkReportsToFirebase(newReports);
   };
 
   const updateOperatorParameters = (params: DynamicParameter[]) => {
     setOperatorParameters(params);
+    saveSettingToFirebase('operatorParameters', params);
   };
 
   const updateNonomParameters = (params: DynamicParameter[]) => {
     setNonomParameters(params);
+    saveSettingToFirebase('nonomParameters', params);
   };
 
   const updateMeritRules = (rules: MeritRule[]) => {
     setMeritRules(rules);
+    saveSettingToFirebase('meritRules', rules);
   };
 
   const updateDemeritRules = (rules: DemeritRule[]) => {
     setDemeritRules(rules);
+    saveSettingToFirebase('demeritRules', rules);
   };
 
   const resetAllDataToDefault = () => {
@@ -323,6 +461,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateMeritRules,
         updateDemeritRules,
         resetAllDataToDefault,
+        isSyncingFirebase,
+        syncAllDataToFirebase,
+        refreshFromFirebase,
       }}
     >
       {children}

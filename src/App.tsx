@@ -13,6 +13,21 @@ const MainLayout: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>('report');
 
+  // Set favicon and title dynamically
+  useEffect(() => {
+    const faviconUrl = 'https://res.cloudinary.com/dgjnlxf69/image/upload/v1786444304/Logo_MER_u8qeow.png';
+    const existingIcons = document.querySelectorAll("link[rel*='icon']");
+    existingIcons.forEach((el) => el.setAttribute('href', faviconUrl));
+    
+    if (existingIcons.length === 0) {
+      const newLink = document.createElement('link');
+      newLink.rel = 'icon';
+      newLink.type = 'image/png';
+      newLink.href = faviconUrl;
+      document.head.appendChild(newLink);
+    }
+  }, []);
+
   // Adjust default tab when currentUser role changes
   useEffect(() => {
     if (!currentUser) return;
