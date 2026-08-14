@@ -163,10 +163,11 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
   return (
     <div className="space-y-6 pb-20">
       {/* Head Coach Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-black text-xl shadow-sm shrink-0 overflow-hidden border-2 border-amber-200">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 text-slate-800 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 min-w-0">
+            {/* Avatar / Photo */}
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-black text-xl shadow-xs shrink-0 overflow-hidden border-2 border-amber-200">
               {currentUser.photoUrl ? (
                 <img
                   src={currentUser.photoUrl}
@@ -177,31 +178,42 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                 currentUser.name.charAt(0)
               )}
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300 flex items-center space-x-1">
-                  <Sparkles className="w-3 h-3 text-amber-600" />
-                  <span>HEAD COACH OPERATIONS</span>
-                </span>
-                <span className="text-xs text-slate-500 font-mono">
-                  NIK: {currentUser.nik}
-                </span>
+
+            {/* Symmetrical Profile Details Grid */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                  {currentUser.name}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  {currentUser.position || `Head Coach Operations - Area ${currentUser.department}`}
+                </p>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
-                {activeTab === 'profile'
-                  ? `Profil Saya: ${currentUser.name}`
-                  : activeTab === 'ytd_report'
-                  ? `Rapor YTD Parameter: ${activeYtdEmployee.name}`
-                  : `Dashboard Operational Head Coach`}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Pengawasan Hirarki: {myGroupLeaders.length} Group Leader & {allHCSubordinates.length} Subordinat Operasional ({currentUser.department}) • Periode {formatPeriodLabel(selectedPeriod)}
-              </p>
+
+              {/* Symmetrical Key-Value Information Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3 text-xs bg-amber-50/50 border border-amber-200/60 rounded-xl px-3 py-2">
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">NIK:</span>
+                  <span className="font-bold text-slate-800 font-mono truncate">{currentUser.nik}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Area:</span>
+                  <span className="font-bold text-slate-800 truncate">{currentUser.department}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Group Leader:</span>
+                  <span className="font-bold text-slate-800 truncate">{myGroupLeaders.length} Orang</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Subordinat:</span>
+                  <span className="font-bold text-slate-800 truncate">{allHCSubordinates.length} Anggota</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center space-x-3 shrink-0">
-            <div className="bg-amber-50/70 px-4 py-2.5 rounded-xl border border-amber-200 text-right">
+            <div className="bg-amber-50/80 px-4 py-2 rounded-xl border border-amber-200 text-right w-full sm:w-auto">
               <span className="text-[10px] uppercase font-bold text-amber-800 block">
                 Rata-rata MER Operasional
               </span>
@@ -674,7 +686,7 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Rapor YTD Parameter Bulanan
+                Rapor YTD
               </button>
               <button
                 onClick={() => setSubModalTab('period')}

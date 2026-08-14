@@ -121,10 +121,10 @@ export const ParameterConfigEngine: React.FC = () => {
       description: 'Deskripsi kriteria evaluasi',
       dataSource: 'Database Laporan',
       criteria: {
-        1: 'Kriteria Level 1 (Kurang)',
-        2: 'Kriteria Level 2 (Cukup)',
-        3: 'Kriteria Level 3 (Baik)',
-        4: 'Kriteria Level 4 (Sangat Baik)',
+        1: 'Kriteria Nilai 1 (Kurang)',
+        2: 'Kriteria Nilai 2 (Cukup)',
+        3: 'Kriteria Nilai 3 (Baik)',
+        4: 'Kriteria Nilai 4 (Sangat Baik)',
       },
     };
 
@@ -184,7 +184,7 @@ export const ParameterConfigEngine: React.FC = () => {
             <span>Dynamic Customization Engine (Konfigurasi Parameter)</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Ubah persentase bobot, kriteria level 1-4, serta nilai Merit & Demerit secara dinamis tanpa hardcode.
+            Ubah persentase bobot, kriteria nilai 1-4, serta nilai Merit & Demerit secara dinamis tanpa hardcode.
           </p>
         </div>
 

@@ -103,10 +103,11 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
   return (
     <div className="space-y-6 pb-20">
       {/* Subordinate Profile Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 text-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center space-x-3.5 sm:space-x-4 w-full sm:w-auto">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-xs shrink-0 overflow-hidden border-2 border-blue-100">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 text-slate-800 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 min-w-0">
+            {/* Avatar / Profile Photo */}
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-xl shadow-xs shrink-0 overflow-hidden border-2 border-blue-100">
               {currentUser.photoUrl ? (
                 <img
                   src={currentUser.photoUrl}
@@ -117,39 +118,41 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
                 currentUser.name.charAt(0)
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+
+            {/* Symmetrical Profile Details Grid */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
                   {currentUser.name}
                 </h2>
-                <span className="text-xs px-2 py-0.5 rounded-md font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  NIK: {currentUser.nik}
-                </span>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  {currentUser.position || `${currentUser.category} - Area ${currentUser.department}`}
+                </p>
               </div>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
-                {currentUser.position}
-              </p>
 
-              {/* Group Leader & Head Coach Clean Container */}
-              <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-xs text-slate-700 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+              {/* Symmetrical Key-Value Information Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2">
                 <div className="flex items-center space-x-1.5 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Group Leader:</span>
-                  <span className="font-bold text-slate-900 truncate">{assignedGroupLeaderName}</span>
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">NIK:</span>
+                  <span className="font-bold text-slate-800 font-mono truncate">{currentUser.nik}</span>
                 </div>
-                <div className="hidden sm:block text-slate-300">•</div>
                 <div className="flex items-center space-x-1.5 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Head Coach:</span>
-                  <span className="font-bold text-slate-900 truncate">{headCoachName}</span>
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Group Leader:</span>
+                  <span className="font-bold text-slate-800 truncate">{assignedGroupLeaderName}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Head Coach:</span>
+                  <span className="font-bold text-slate-800 truncate">{headCoachName}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
+          <div className="flex items-center space-x-2 shrink-0">
             {activeTab === 'report' && (
               <button
                 onClick={() => setShowPrintModal(true)}
-                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
                 <span>Cetak Rapor MER</span>

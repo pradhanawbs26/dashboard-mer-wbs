@@ -56,6 +56,15 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
 
   if (!currentUser) return null;
 
+  // Resolve assigned Head Coach for this Group Leader
+  const assignedHeadCoach = employees.find(
+    (e) =>
+      (currentUser.groupLeaderId &&
+        (e.nik === currentUser.groupLeaderId || e.id === currentUser.groupLeaderId)) ||
+      e.role === 'head_coach'
+  );
+  const headCoachName = assignedHeadCoach ? assignedHeadCoach.name : 'Dharmawan Kustanto';
+
   // Subordinates under this GL or Head Coach
   const mySubordinates =
     currentUser.role === 'head_coach'
@@ -132,10 +141,11 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
   return (
     <div className="space-y-6 pb-20">
       {/* GL Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-xl shadow-sm shrink-0 overflow-hidden border-2 border-blue-100">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 text-slate-800 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 min-w-0">
+            {/* Avatar / Photo */}
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-xl shadow-xs shrink-0 overflow-hidden border-2 border-blue-100">
               {currentUser.photoUrl ? (
                 <img
                   src={currentUser.photoUrl}
@@ -146,36 +156,42 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                 currentUser.name.charAt(0)
               )}
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
-                  currentUser.role === 'head_coach'
-                    ? 'bg-amber-50 text-amber-800 border-amber-300'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                }`}>
-                  {currentUser.role === 'head_coach' ? 'HEAD COACH OPERATIONS' : 'GROUP LEADER TIM'}
-                </span>
-                <span className="text-xs text-slate-500 font-mono">
-                  NIK: {currentUser.nik}
-                </span>
+
+            {/* Symmetrical Profile Details Grid */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                  {currentUser.name}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  {currentUser.position || `Group Leader - Area ${currentUser.department}`}
+                </p>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
-                {activeTab === 'profile'
-                  ? `Profil Saya: ${currentUser.name}`
-                  : activeTab === 'ytd_report'
-                  ? `Rapor YTD Parameter: ${activeYtdEmployee.name}`
-                  : `Dashboard Tim: ${currentUser.name}`}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {currentUser.role === 'head_coach'
-                  ? `Pengawasan Seluruh Group Leader & Operasional (${currentUser.department})`
-                  : `Pengawasan Kinerja Subordinat Area Kerja ${currentUser.department}`} • Periode {formatPeriodLabel(selectedPeriod)}
-              </p>
+
+              {/* Symmetrical Key-Value Information Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3 text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2">
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">NIK:</span>
+                  <span className="font-bold text-slate-800 font-mono truncate">{currentUser.nik}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Area:</span>
+                  <span className="font-bold text-slate-800 truncate">{currentUser.department}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Head Coach:</span>
+                  <span className="font-bold text-slate-800 truncate">{headCoachName}</span>
+                </div>
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">Subordinat:</span>
+                  <span className="font-bold text-slate-800 truncate">{mySubordinates.length} Anggota</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center space-x-3 shrink-0">
-            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 text-right">
+            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 text-right w-full sm:w-auto">
               <span className="text-[10px] uppercase font-bold text-slate-500 block">
                 Rata-rata MER Tim
               </span>
@@ -528,7 +544,7 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Rapor YTD Parameter Bulanan
+                Rapor YTD
               </button>
               <button
                 onClick={() => setMemberModalTab('period')}

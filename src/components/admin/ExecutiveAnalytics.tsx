@@ -14,12 +14,12 @@ import {
   Filter,
   BarChart3,
   Users,
-  Download,
   PieChart as PieChartIcon,
   UserX,
   AlertTriangle,
   UserCheck,
   FileSpreadsheet,
+  CalendarRange,
 } from 'lucide-react';
 import {
   PieChart,
@@ -29,7 +29,6 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import * as XLSX from 'xlsx';
 
 export const ExecutiveAnalytics: React.FC = () => {
   const {
@@ -40,9 +39,58 @@ export const ExecutiveAnalytics: React.FC = () => {
     nonomParameters,
   } = useApp();
 
-  const [analyticsMode, setAnalyticsMode] = useState<'MONTHLY' | 'YTD'>('MONTHLY');
+  const [analyticsMode, setAnalyticsMode] = useState<'MONTHLY' | 'CUSTOM'>('CUSTOM');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Operator' | 'Nonom'>('ALL');
+  const [startMonth, setStartMonth] = useState<string>('01');
+  const [endMonth, setEndMonth] = useState<string>('12');
+  const [customYear, setCustomYear] = useState<string>('2026');
   const [selectedYtdSubNik, setSelectedYtdSubNik] = useState<string>('');
+
+  const months = [
+    { code: '01', name: 'Jan', fullName: 'Januari' },
+    { code: '02', name: 'Feb', fullName: 'Februari' },
+    { code: '03', name: 'Mar', fullName: 'Maret' },
+    { code: '04', name: 'Apr', fullName: 'April' },
+    { code: '05', name: 'Mei', fullName: 'Mei' },
+    { code: '06', name: 'Jun', fullName: 'Juni' },
+    { code: '07', name: 'Jul', fullName: 'Juli' },
+    { code: '08', name: 'Agu', fullName: 'Agustus' },
+    { code: '09', name: 'Sep', fullName: 'September' },
+    { code: '10', name: 'Okt', fullName: 'Oktober' },
+    { code: '11', name: 'Nov', fullName: 'November' },
+    { code: '12', name: 'Des', fullName: 'Desember' },
+  ];
+
+  const availableYears = ['2026', '2025', '2024'];
+
+  const handleStartMonthChange = (val: string) => {
+    setStartMonth(val);
+    if (parseInt(val, 10) > parseInt(endMonth, 10)) {
+      setEndMonth(val);
+    }
+  };
+
+  const handleEndMonthChange = (val: string) => {
+    setEndMonth(val);
+    if (parseInt(val, 10) < parseInt(startMonth, 10)) {
+      setStartMonth(val);
+    }
+  };
+
+  const startMonthObj = months.find((m) => m.code === startMonth) || months[0];
+  const endMonthObj = months.find((m) => m.code === endMonth) || months[11];
+  const isFullYear = startMonth === '01' && endMonth === '12';
+  const customPeriodLabel = isFullYear
+    ? `Januari - Desember ${customYear}`
+    : `${startMonthObj.fullName} - ${endMonthObj.fullName} ${customYear}`;
+
+  const currentActiveRangeLabel =
+    analyticsMode === 'MONTHLY'
+      ? `Bulanan: ${formatPeriodLabel(selectedPeriod)}`
+      : `Periode: ${customPeriodLabel}`;
+
+  const activeTableYear =
+    analyticsMode === 'CUSTOM' ? customYear : selectedPeriod.split('-')[0];
 
   // Subordinates list
   const subEmployees = employees.filter((e) => e.role === 'subordinate');
@@ -51,7 +99,7 @@ export const ExecutiveAnalytics: React.FC = () => {
   const headCoachObj = employees.find((e) => e.role === 'head_coach');
   const headCoachName = headCoachObj ? headCoachObj.name : 'Dharmawan Kustanto';
 
-  // Map employees with Monthly or YTD score
+  // Map employees with Monthly or Custom Period score
   const employeeScores = subEmployees.map((emp) => {
     if (analyticsMode === 'MONTHLY') {
       const rep = reports.find(
@@ -64,8 +112,17 @@ export const ExecutiveAnalytics: React.FC = () => {
         periodCount: rep ? 1 : 0,
       };
     } else {
-      // YTD Calculation across all available reports for this employee
-      const empReps = reports.filter((r) => r.nik === emp.nik);
+      // Custom Period Calculation across startMonth to endMonth of customYear
+      const startCode = parseInt(startMonth, 10);
+      const endCode = parseInt(endMonth, 10);
+      const empReps = reports.filter((r) => {
+        if (r.nik !== emp.nik) return false;
+        const [yr, mo] = r.period.split('-');
+        if (yr !== customYear) return false;
+        const moNum = parseInt(mo, 10);
+        return moNum >= startCode && moNum <= endCode;
+      });
+
       const avg =
         empReps.length > 0
           ? empReps.reduce((acc, r) => acc + r.finalScore, 0) / empReps.length
@@ -213,112 +270,130 @@ export const ExecutiveAnalytics: React.FC = () => {
     count: data.count,
   })).sort((a, b) => b.average - a.average);
 
-  // Excel Export Handler
-  const exportExecutiveAnalyticsExcel = () => {
-    const wb = XLSX.utils.book_new();
-
-    const top10Data = top10Best.map((item, idx) => ({
-      Rangking: idx + 1,
-      NIK: item.employee.nik,
-      Nama: item.employee.name,
-      Kategori: item.employee.category,
-      Alat_Berat: item.employee.equipmentType || '-',
-      Area_Kerja: item.employee.department,
-      Group_Leader: item.employee.groupLeaderName || '-',
-      Skor_MER: item.score,
-    }));
-
-    const bottom10Data = top10Worst.map((item, idx) => ({
-      Rangking_Bawah: idx + 1,
-      NIK: item.employee.nik,
-      Nama: item.employee.name,
-      Kategori: item.employee.category,
-      Alat_Berat: item.employee.equipmentType || '-',
-      Area_Kerja: item.employee.department,
-      Group_Leader: item.employee.groupLeaderName || '-',
-      Skor_MER: item.score,
-    }));
-
-    const glLowestData = lowestAvgGroupLeaders.map((item, idx) => ({
-      Rangking_GL_Terendah: idx + 1,
-      NIK_GL: item.gl.nik,
-      Nama_GL: item.gl.name,
-      Departemen: item.gl.department,
-      Total_Subordinat: item.totalSubsCount,
-      Subordinat_Terapresiasi: item.evaluatedCount,
-      Rata_Rata_Rapor_Tim: item.avgScore,
-    }));
-
-    const wsTop = XLSX.utils.json_to_sheet(top10Data);
-    const wsBottom = XLSX.utils.json_to_sheet(bottom10Data);
-    const wsGL = XLSX.utils.json_to_sheet(glLowestData);
-
-    XLSX.utils.book_append_sheet(wb, wsTop, 'Top 10 Best Employees');
-    XLSX.utils.book_append_sheet(wb, wsBottom, 'Top 10 Needs Coaching');
-    XLSX.utils.book_append_sheet(wb, wsGL, 'Rata-Rata Tim GL Terendah');
-
-    XLSX.writeFile(wb, `Dashboard_MER_${analyticsMode}_${selectedPeriod}.xlsx`);
-  };
-
   return (
     <div className="space-y-6">
       {/* Controls Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800 shadow-sm">
-        <div className="flex items-center space-x-2">
-          <BarChart3 className="w-5 h-5 text-blue-600" />
-          <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-            Dashboard MER
-          </h3>
-        </div>
-
-        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-          {/* Monthly vs YTD Toggle */}
-          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center">
-            <button
-              onClick={() => setAnalyticsMode('MONTHLY')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                analyticsMode === 'MONTHLY'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Monthly ({formatPeriodLabel(selectedPeriod)})
-            </button>
-            <button
-              onClick={() => setAnalyticsMode('YTD')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                analyticsMode === 'YTD'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              YTD 2026
-            </button>
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 text-slate-800 shadow-sm space-y-4">
+        {/* Main Controls Header Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">
+                Dashboard MER
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Monitoring analitik performa, persebaran nilai, dan evaluasi tim
+              </p>
+            </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-blue-600 shrink-0" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as any)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-            >
-              <option value="ALL">Semua Kategori</option>
-              <option value="Operator">Operator</option>
-              <option value="Nonom">Nonom</option>
-            </select>
-          </div>
+          <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+            {/* Monthly vs Periode Kustom Toggle */}
+            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center">
+              <button
+                onClick={() => setAnalyticsMode('MONTHLY')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  analyticsMode === 'MONTHLY'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Bulanan ({formatPeriodLabel(selectedPeriod)})
+              </button>
+              <button
+                onClick={() => setAnalyticsMode('CUSTOM')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  analyticsMode === 'CUSTOM'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Periode Kustom
+              </button>
+            </div>
 
-          {/* Export Excel Button */}
-          <button
-            onClick={exportExecutiveAnalyticsExcel}
-            className="bg-white hover:bg-slate-50 text-blue-600 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all shadow-sm"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Analytics XLSX</span>
-          </button>
+            {/* Category Filter */}
+            <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800">
+              <Filter className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as any)}
+                className="bg-transparent text-xs text-slate-800 font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">Semua Kategori</option>
+                <option value="Operator">Operator</option>
+                <option value="Nonom">Nonom</option>
+              </select>
+            </div>
+          </div>
         </div>
+
+        {/* Custom Period Range Toolbar */}
+        {analyticsMode === 'CUSTOM' && (
+          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+            <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
+                <CalendarRange className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Pilih Periode:</span>
+              </div>
+
+              {/* Bulan Awal */}
+              <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Awal:</span>
+                <select
+                  value={startMonth}
+                  onChange={(e) => handleStartMonthChange(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  {months.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Bulan Akhir */}
+              <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Akhir:</span>
+                <select
+                  value={endMonth}
+                  onChange={(e) => handleEndMonthChange(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  {months.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tahun */}
+              <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tahun:</span>
+                <select
+                  value={customYear}
+                  onChange={(e) => setCustomYear(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  {availableYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-blue-900 bg-blue-100/70 border border-blue-200/80 px-2.5 py-1 rounded-lg font-bold shrink-0 self-start sm:self-auto">
+              Rentang Aktif: {customPeriodLabel}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Analytics Section: Pie Chart Distribution & Lowest GL Performance */}
@@ -329,7 +404,7 @@ export const ExecutiveAnalytics: React.FC = () => {
             <div className="flex items-center space-x-2">
               <PieChartIcon className="w-5 h-5 text-blue-600" />
               <h3 className="font-bold text-base text-slate-800">
-                Persebaran Nilai MER ({analyticsMode})
+                Persebaran Nilai MER ({currentActiveRangeLabel})
               </h3>
             </div>
             <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-bold">
@@ -484,7 +559,7 @@ export const ExecutiveAnalytics: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Award className="w-5 h-5 text-emerald-600" />
               <h3 className="font-bold text-base text-slate-800">
-                Top 10 Best Employees ({analyticsMode})
+                Top 10 Best Employees
               </h3>
             </div>
             <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
@@ -554,7 +629,7 @@ export const ExecutiveAnalytics: React.FC = () => {
             <div className="flex items-center space-x-2">
               <AlertOctagon className="w-5 h-5 text-rose-600" />
               <h3 className="font-bold text-base text-slate-800">
-                Top 10 Needs Coaching ({analyticsMode})
+                Top 10 Needs Coaching
               </h3>
             </div>
             <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
@@ -609,18 +684,18 @@ export const ExecutiveAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Horizontal YTD MER Matrix Table */}
+      {/* Admin Horizontal MER Matrix Table */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 text-slate-800 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center space-x-2">
               <FileSpreadsheet className="w-5 h-5 text-blue-600 shrink-0" />
               <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-                Tabel MER YTD
+                Tabel Rekapitulasi Nilai MER ({activeTableYear})
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rekapitulasi perolehan nilai akhir MER bulanan (Januari - Desember 2026) dan Rerata YTD untuk seluruh anggota subordinat
+              Rekapitulasi perolehan nilai akhir MER bulanan (Januari - Desember {activeTableYear}) dan Rerata {analyticsMode === 'CUSTOM' ? `Periode (${startMonthObj.name} - ${endMonthObj.name})` : 'YTD'} untuk seluruh anggota subordinat
             </p>
           </div>
 
@@ -637,39 +712,58 @@ export const ExecutiveAnalytics: React.FC = () => {
                 <th className="py-3 px-3 text-center w-10">No.</th>
                 <th className="py-3 px-4 min-w-[180px]">Subordinat / NIK</th>
                 <th className="py-3 px-3 min-w-[130px]">Group Leader</th>
-                <th className="py-3 px-2 text-center">Jan</th>
-                <th className="py-3 px-2 text-center">Feb</th>
-                <th className="py-3 px-2 text-center">Mar</th>
-                <th className="py-3 px-2 text-center">Apr</th>
-                <th className="py-3 px-2 text-center">Mei</th>
-                <th className="py-3 px-2 text-center">Jun</th>
-                <th className="py-3 px-2 text-center">Jul</th>
-                <th className="py-3 px-2 text-center">Agu</th>
-                <th className="py-3 px-2 text-center">Sep</th>
-                <th className="py-3 px-2 text-center">Okt</th>
-                <th className="py-3 px-2 text-center">Nov</th>
-                <th className="py-3 px-2 text-center">Des</th>
-                <th className="py-3 px-3 text-center bg-blue-900 text-white min-w-[90px]">Rerata YTD</th>
-                <th className="py-3 px-4 text-center min-w-[130px]">Status YTD</th>
+                {months.map((m) => {
+                  const mNum = parseInt(m.code, 10);
+                  const isHighlighted =
+                    analyticsMode === 'CUSTOM' &&
+                    mNum >= parseInt(startMonth, 10) &&
+                    mNum <= parseInt(endMonth, 10);
+                  return (
+                    <th
+                      key={m.code}
+                      className={`py-3 px-2 text-center transition-colors ${
+                        isHighlighted ? 'bg-blue-950 text-blue-300 font-black' : ''
+                      }`}
+                    >
+                      {m.name}
+                    </th>
+                  );
+                })}
+                <th className="py-3 px-3 text-center bg-blue-900 text-white min-w-[100px]">
+                  {analyticsMode === 'CUSTOM'
+                    ? `Rerata (${startMonthObj.name}-${endMonthObj.name})`
+                    : 'Rerata YTD'}
+                </th>
+                <th className="py-3 px-4 text-center min-w-[130px]">Status Evaluasi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/80 bg-white">
               {subEmployees.map((sub, idx) => {
-                const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
                 const monthlyScores: (number | null)[] = months.map((m) => {
                   const rep = reports.find(
-                    (r) => r.nik === sub.nik && r.period === `2026-${m}`
+                    (r) => r.nik === sub.nik && r.period === `${activeTableYear}-${m.code}`
                   );
                   return rep ? rep.finalScore : null;
                 });
 
-                const validScores = monthlyScores.filter((s): s is number => s !== null);
-                const ytdAvg =
-                  validScores.length > 0
-                    ? validScores.reduce((acc, curr) => acc + curr, 0) / validScores.length
+                // Range scores for selected period
+                const startCode = parseInt(startMonth, 10);
+                const endCode = parseInt(endMonth, 10);
+
+                const rangeScores =
+                  analyticsMode === 'CUSTOM'
+                    ? monthlyScores.filter((s, mIdx) => {
+                        const mNum = mIdx + 1;
+                        return mNum >= startCode && mNum <= endCode && s !== null;
+                      })
+                    : monthlyScores.filter((s): s is number => s !== null);
+
+                const calculatedAvg =
+                  rangeScores.length > 0
+                    ? (rangeScores as number[]).reduce((acc, curr) => acc + curr, 0) / rangeScores.length
                     : 0;
 
-                const badge = getScoreCategoryBadge(ytdAvg);
+                const badge = getScoreCategoryBadge(calculatedAvg);
                 const isExpanded = selectedYtdSubNik === sub.nik;
 
                 return (
@@ -708,37 +802,47 @@ export const ExecutiveAnalytics: React.FC = () => {
                       </td>
 
                       {/* 12 Months Scores */}
-                      {monthlyScores.map((score, mIdx) => (
-                        <td
-                          key={mIdx}
-                          className="py-3 px-1.5 text-center font-bold text-[11px]"
-                        >
-                          {score !== null ? (
-                            <span
-                              className={
-                                score >= 3.25
-                                  ? 'text-emerald-700'
-                                  : score >= 2.5
-                                  ? 'text-blue-700'
-                                  : score >= 1.75
-                                  ? 'text-amber-700'
-                                  : 'text-rose-700'
-                              }
-                            >
-                              {score.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 font-normal">-</span>
-                          )}
-                        </td>
-                      ))}
+                      {monthlyScores.map((score, mIdx) => {
+                        const mNum = mIdx + 1;
+                        const isHighlighted =
+                          analyticsMode === 'CUSTOM' &&
+                          mNum >= startCode &&
+                          mNum <= endCode;
 
-                      {/* YTD Average Column */}
+                        return (
+                          <td
+                            key={mIdx}
+                            className={`py-3 px-1.5 text-center font-bold text-[11px] ${
+                              isHighlighted ? 'bg-blue-50/40' : ''
+                            }`}
+                          >
+                            {score !== null ? (
+                              <span
+                                className={
+                                  score >= 3.25
+                                    ? 'text-emerald-700'
+                                    : score >= 2.5
+                                    ? 'text-blue-700'
+                                    : score >= 1.75
+                                    ? 'text-amber-700'
+                                    : 'text-rose-700'
+                                }
+                              >
+                                {score.toFixed(2)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 font-normal">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      {/* Average Column */}
                       <td className="py-3 px-3 text-center font-black text-xs bg-blue-50/80 text-blue-900 border-x border-blue-200">
-                        {ytdAvg > 0 ? ytdAvg.toFixed(2) : '0.00'}
+                        {calculatedAvg > 0 ? calculatedAvg.toFixed(2) : '0.00'}
                       </td>
 
-                      {/* YTD Badge Column */}
+                      {/* Status Badge Column */}
                       <td className="py-3 px-4 text-center">
                         <span
                           className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${badge.badgeClass}`}
@@ -748,14 +852,14 @@ export const ExecutiveAnalytics: React.FC = () => {
                       </td>
                     </tr>
 
-                    {/* Expandable YTD Parameter Detail Row */}
+                    {/* Expandable Parameter Detail Row */}
                     {isExpanded && (
                       <tr>
                         <td colSpan={17} className="p-4 bg-slate-100/90 border-b-2 border-blue-500">
                           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                               <h4 className="font-extrabold text-sm text-blue-900 flex items-center space-x-2">
-                                <span>Detail Nilai Parameter YTD Transparan:</span>
+                                <span>Rapor YTD:</span>
                                 <span className="text-slate-900">{sub.name} (NIK: {sub.nik})</span>
                               </h4>
                               <button
@@ -771,7 +875,7 @@ export const ExecutiveAnalytics: React.FC = () => {
                               reports={reports}
                               operatorParameters={operatorParameters}
                               nonomParameters={nonomParameters}
-                              selectedYear="2026"
+                              selectedYear={activeTableYear}
                             />
                           </div>
                         </td>
@@ -787,4 +891,5 @@ export const ExecutiveAnalytics: React.FC = () => {
     </div>
   );
 };
+
 

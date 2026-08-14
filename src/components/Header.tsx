@@ -40,14 +40,9 @@ export const Header: React.FC = () => {
               />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-lg tracking-tight text-white">
-                  MER <span className="text-blue-400">Online</span>
-                </span>
-                <span className="text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded">
-                  v1.0
-                </span>
-              </div>
+              <span className="font-extrabold text-lg tracking-tight text-white block">
+                MER <span className="text-blue-400">Online</span>
+              </span>
               <p className="text-xs text-slate-300 font-medium hidden sm:block">
                 PT. Wahana Bara Sentosa
               </p>

@@ -19,21 +19,44 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
   selectedYear = '2026',
 }) => {
   const [currentYear, setCurrentYear] = useState<string>(selectedYear);
+  const [startMonth, setStartMonth] = useState<string>('01');
+  const [endMonth, setEndMonth] = useState<string>('12');
 
   const months = [
-    { code: '01', name: 'Jan' },
-    { code: '02', name: 'Feb' },
-    { code: '03', name: 'Mar' },
-    { code: '04', name: 'Apr' },
-    { code: '05', name: 'Mei' },
-    { code: '06', name: 'Jun' },
-    { code: '07', name: 'Jul' },
-    { code: '08', name: 'Ags' },
-    { code: '09', name: 'Sep' },
-    { code: '10', name: 'Okt' },
-    { code: '11', name: 'Nov' },
-    { code: '12', name: 'Des' },
+    { code: '01', name: 'Jan', fullName: 'Januari' },
+    { code: '02', name: 'Feb', fullName: 'Februari' },
+    { code: '03', name: 'Mar', fullName: 'Maret' },
+    { code: '04', name: 'Apr', fullName: 'April' },
+    { code: '05', name: 'Mei', fullName: 'Mei' },
+    { code: '06', name: 'Jun', fullName: 'Juni' },
+    { code: '07', name: 'Jul', fullName: 'Juli' },
+    { code: '08', name: 'Ags', fullName: 'Agustus' },
+    { code: '09', name: 'Sep', fullName: 'September' },
+    { code: '10', name: 'Okt', fullName: 'Oktober' },
+    { code: '11', name: 'Nov', fullName: 'November' },
+    { code: '12', name: 'Des', fullName: 'Desember' },
   ];
+
+  const handleStartMonthChange = (val: string) => {
+    setStartMonth(val);
+    if (parseInt(val, 10) > parseInt(endMonth, 10)) {
+      setEndMonth(val);
+    }
+  };
+
+  const handleEndMonthChange = (val: string) => {
+    setEndMonth(val);
+    if (parseInt(val, 10) < parseInt(startMonth, 10)) {
+      setStartMonth(val);
+    }
+  };
+
+  const startMonthObj = months.find((m) => m.code === startMonth) || months[0];
+  const endMonthObj = months.find((m) => m.code === endMonth) || months[11];
+  const isFullYear = startMonth === '01' && endMonth === '12';
+  const periodRangeLabel = isFullYear
+    ? `Jan - Des ${currentYear}`
+    : `${startMonthObj.name} - ${endMonthObj.name} ${currentYear}`;
 
   const parameters =
     employee.category === 'Operator' ? operatorParameters : nonomParameters;
@@ -50,53 +73,121 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
     reportByMonth[m.code] = empReports.find((r) => r.period === period);
   });
 
-  // Calculate YTD averages
-  const validReports = Object.values(reportByMonth).filter(
+  // Calculate full YTD reports
+  const allYtdReports = Object.values(reportByMonth).filter(
     (r): r is MonthlyReport => r !== undefined
   );
 
+  // Filter months in selected range
+  const monthsInRange = months.filter((m) => {
+    const codeNum = parseInt(m.code, 10);
+    return codeNum >= parseInt(startMonth, 10) && codeNum <= parseInt(endMonth, 10);
+  });
+
+  const rangeReports = monthsInRange
+    .map((m) => reportByMonth[m.code])
+    .filter((r): r is MonthlyReport => r !== undefined);
+
+  // Full YTD averages
   const ytdFinalAvg =
-    validReports.length > 0
-      ? validReports.reduce((acc, r) => acc + r.finalScore, 0) / validReports.length
+    allYtdReports.length > 0
+      ? allYtdReports.reduce((acc, r) => acc + r.finalScore, 0) / allYtdReports.length
       : 0;
 
   const ytdBaseAvg =
-    validReports.length > 0
-      ? validReports.reduce((acc, r) => acc + r.baseScore, 0) / validReports.length
+    allYtdReports.length > 0
+      ? allYtdReports.reduce((acc, r) => acc + r.baseScore, 0) / allYtdReports.length
       : 0;
 
   const ytdMeritAvg =
-    validReports.length > 0
-      ? validReports.reduce((acc, r) => acc + r.meritPoint, 0) / validReports.length
+    allYtdReports.length > 0
+      ? allYtdReports.reduce((acc, r) => acc + r.meritPoint, 0) / allYtdReports.length
       : 0;
 
   const ytdDemeritAvg =
-    validReports.length > 0
-      ? validReports.reduce((acc, r) => acc + r.demeritPoint, 0) / validReports.length
+    allYtdReports.length > 0
+      ? allYtdReports.reduce((acc, r) => acc + r.demeritPoint, 0) / allYtdReports.length
+      : 0;
+
+  // Selected Range averages
+  const rangeFinalAvg =
+    rangeReports.length > 0
+      ? rangeReports.reduce((acc, r) => acc + r.finalScore, 0) / rangeReports.length
+      : 0;
+
+  const rangeBaseAvg =
+    rangeReports.length > 0
+      ? rangeReports.reduce((acc, r) => acc + r.baseScore, 0) / rangeReports.length
+      : 0;
+
+  const rangeMeritAvg =
+    rangeReports.length > 0
+      ? rangeReports.reduce((acc, r) => acc + r.meritPoint, 0) / rangeReports.length
+      : 0;
+
+  const rangeDemeritAvg =
+    rangeReports.length > 0
+      ? rangeReports.reduce((acc, r) => acc + r.demeritPoint, 0) / rangeReports.length
       : 0;
 
   const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'monthly' | 'table'>('cards');
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-6 text-slate-800 shadow-sm space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div>
-          <div className="flex items-center space-x-2">
-            <Award className="w-5 h-5 text-blue-600 shrink-0" />
-            <h3 className="font-extrabold text-base sm:text-lg text-slate-900 leading-snug">
-              Rapor YTD Transparansi Parameter ({currentYear})
-            </h3>
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 text-slate-800 shadow-xs space-y-4">
+      {/* Header Bar: Clean Title & Period Selectors */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+            <Award className="w-4 h-4" />
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Karyawan: <strong className="text-slate-800">{employee.name}</strong> (NIK: {employee.nik}) • {employee.department} • {employee.category}
-          </p>
+          <div>
+            <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
+              Rapor YTD
+            </h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Analisis parameter kinerja & evaluasi periode {periodRangeLabel}
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 shrink-0">
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-            <Calendar className="w-3.5 h-3.5 text-blue-600 mr-1.5" />
-            <span className="font-bold text-slate-700 mr-1.5">Tahun:</span>
+        {/* Filter Controls: Periode Awal, Periode Akhir, & Tahun */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+          {/* Periode Awal Selector */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs flex-1 sm:flex-initial">
+            <span className="text-slate-400 font-bold mr-1.5 uppercase text-[10px] tracking-wider">Awal:</span>
+            <select
+              value={startMonth}
+              onChange={(e) => handleStartMonthChange(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {months.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Periode Akhir Selector */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs flex-1 sm:flex-initial">
+            <span className="text-slate-400 font-bold mr-1.5 uppercase text-[10px] tracking-wider">Akhir:</span>
+            <select
+              value={endMonth}
+              onChange={(e) => handleEndMonthChange(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {months.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tahun Selector */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 mr-1.5 shrink-0" />
+            <span className="text-slate-400 font-bold mr-1.5 uppercase text-[10px] tracking-wider">Tahun:</span>
             <select
               value={currentYear}
               onChange={(e) => setCurrentYear(e.target.value)}
@@ -104,47 +195,99 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
             >
               <option value="2026">2026</option>
               <option value="2025">2025</option>
+              <option value="2024">2024</option>
             </select>
           </div>
+
+          {/* Reset to Full Year button if filtered */}
+          {!isFullYear && (
+            <button
+              onClick={() => {
+                setStartMonth('01');
+                setEndMonth('12');
+              }}
+              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-colors cursor-pointer"
+              title="Kembalikan ke seluruh bulan (Jan - Des)"
+            >
+              Semua Bulan
+            </button>
+          )}
         </div>
       </div>
 
-      {/* YTD Summary Stats Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <div className="bg-blue-50/90 border border-blue-200 p-2.5 sm:p-3 rounded-xl">
-          <span className="text-[10px] text-blue-600 font-bold uppercase block truncate">
-            Rerata Skor YTD
-          </span>
-          <span className="text-base sm:text-lg font-black text-blue-900">
-            {ytdFinalAvg > 0 ? ytdFinalAvg.toFixed(2) : '-'} <span className="text-[10px] sm:text-xs font-normal text-slate-500">/ 4.00</span>
-          </span>
+      {/* Summary Stat Cards: Menampilkan Rerata Periode Terpilih dan Rerata YTD */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        {/* Card 1: Rerata Skor MER */}
+        <div className="bg-blue-50/70 border border-blue-200/80 p-3.5 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-blue-700 font-bold uppercase tracking-wider block">
+              Rerata Skor ({startMonthObj.name} - {endMonthObj.name})
+            </span>
+            {rangeFinalAvg > 0 && (
+              <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${getScoreCategoryBadge(rangeFinalAvg).badgeClass}`}>
+                {getScoreCategoryBadge(rangeFinalAvg).label}
+              </span>
+            )}
+          </div>
+          <div className="flex items-baseline space-x-1 mt-1">
+            <span className="text-xl sm:text-2xl font-black text-blue-900">
+              {rangeFinalAvg > 0 ? rangeFinalAvg.toFixed(2) : '-'}
+            </span>
+            <span className="text-[11px] text-slate-500 font-normal">/ 4.00</span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-blue-200/60 flex items-center justify-between text-[11px] text-slate-600">
+            <span>Rerata YTD Tahunan:</span>
+            <span className="font-bold text-blue-800">{ytdFinalAvg > 0 ? ytdFinalAvg.toFixed(2) : '-'}</span>
+          </div>
         </div>
 
-        <div className="bg-slate-50 border border-slate-200 p-2.5 sm:p-3 rounded-xl">
-          <span className="text-[10px] text-slate-500 font-bold uppercase block truncate">
+        {/* Card 2: Skor Utama (Evaluasi Parameter) */}
+        <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl">
+          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
             Rerata Skor Utama
           </span>
-          <span className="text-base sm:text-lg font-extrabold text-slate-800">
-            {ytdBaseAvg > 0 ? ytdBaseAvg.toFixed(2) : '-'}
-          </span>
+          <div className="flex items-baseline space-x-1 mt-1">
+            <span className="text-xl sm:text-2xl font-black text-slate-800">
+              {rangeBaseAvg > 0 ? rangeBaseAvg.toFixed(2) : '-'}
+            </span>
+            <span className="text-[11px] text-slate-400 font-normal">/ 4.00</span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-600">
+            <span>YTD Tahunan:</span>
+            <span className="font-bold text-slate-800">{ytdBaseAvg > 0 ? ytdBaseAvg.toFixed(2) : '-'}</span>
+          </div>
         </div>
 
-        <div className="bg-emerald-50/90 border border-emerald-200 p-2.5 sm:p-3 rounded-xl">
-          <span className="text-[10px] text-emerald-700 font-bold uppercase block truncate">
+        {/* Card 3: Merit Points */}
+        <div className="bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-2xl">
+          <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
             Rerata Merit (+)
           </span>
-          <span className="text-base sm:text-lg font-extrabold text-emerald-800">
-            +{ytdMeritAvg.toFixed(2)}
-          </span>
+          <div className="flex items-baseline space-x-1 mt-1">
+            <span className="text-xl sm:text-2xl font-black text-emerald-800">
+              +{rangeMeritAvg.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-emerald-200/60 flex items-center justify-between text-[11px] text-slate-600">
+            <span>YTD Tahunan:</span>
+            <span className="font-bold text-emerald-800">+{ytdMeritAvg.toFixed(2)}</span>
+          </div>
         </div>
 
-        <div className="bg-rose-50/90 border border-rose-200 p-2.5 sm:p-3 rounded-xl">
-          <span className="text-[10px] text-rose-700 font-bold uppercase block truncate">
+        {/* Card 4: Demerit Points */}
+        <div className="bg-rose-50/70 border border-rose-200/80 p-3.5 rounded-2xl">
+          <span className="text-[10px] text-rose-700 font-bold uppercase tracking-wider block">
             Rerata Demerit (-)
           </span>
-          <span className="text-base sm:text-lg font-extrabold text-rose-800">
-            -{ytdDemeritAvg.toFixed(2)}
-          </span>
+          <div className="flex items-baseline space-x-1 mt-1">
+            <span className="text-xl sm:text-2xl font-black text-rose-800">
+              -{rangeDemeritAvg.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-rose-200/60 flex items-center justify-between text-[11px] text-slate-600">
+            <span>YTD Tahunan:</span>
+            <span className="font-bold text-rose-800">-{ytdDemeritAvg.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
@@ -154,7 +297,7 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
           onClick={() => setMobileViewMode('cards')}
           className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center ${
             mobileViewMode === 'cards'
-              ? 'bg-white text-blue-600 shadow-sm font-extrabold'
+              ? 'bg-white text-blue-600 shadow-xs font-extrabold'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -164,7 +307,7 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
           onClick={() => setMobileViewMode('monthly')}
           className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center ${
             mobileViewMode === 'monthly'
-              ? 'bg-white text-blue-600 shadow-sm font-extrabold'
+              ? 'bg-white text-blue-600 shadow-xs font-extrabold'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -174,7 +317,7 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
           onClick={() => setMobileViewMode('table')}
           className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center ${
             mobileViewMode === 'table'
-              ? 'bg-white text-blue-600 shadow-sm font-extrabold'
+              ? 'bg-white text-blue-600 shadow-xs font-extrabold'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -186,19 +329,29 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
       {mobileViewMode === 'cards' && (
         <div className="block sm:hidden space-y-3 pt-1">
           <div className="flex items-center justify-between text-xs text-slate-500 pb-1">
-            <span className="font-bold text-slate-700">Rincian Per Parameter Evaluasi:</span>
+            <span className="font-bold text-slate-700">Rincian Per Parameter ({periodRangeLabel}):</span>
             <span>{parameters.length} Parameter</span>
           </div>
 
           {parameters.map((param) => {
-            // Calculate parameter YTD avg
-            const paramScores = validReports
+            // Selected range parameter avg
+            const rangeParamScores = rangeReports
               .map((r) => r.scores[param.id])
               .filter((s): s is number => typeof s === 'number');
 
-            const paramAvg =
-              paramScores.length > 0
-                ? paramScores.reduce((a, b) => a + b, 0) / paramScores.length
+            const rangeParamAvg =
+              rangeParamScores.length > 0
+                ? rangeParamScores.reduce((a, b) => a + b, 0) / rangeParamScores.length
+                : 0;
+
+            // Full YTD parameter avg
+            const ytdParamScores = allYtdReports
+              .map((r) => r.scores[param.id])
+              .filter((s): s is number => typeof s === 'number');
+
+            const ytdParamAvg =
+              ytdParamScores.length > 0
+                ? ytdParamScores.reduce((a, b) => a + b, 0) / ytdParamScores.length
                 : 0;
 
             return (
@@ -206,7 +359,7 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                 key={param.id}
                 className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 text-slate-800 shadow-xs space-y-2.5"
               >
-                {/* Card Title & YTD Avg */}
+                {/* Card Title & Averages */}
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
@@ -217,20 +370,25 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                     </h4>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Rerata YTD</span>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">
+                      Rerata {startMonthObj.name}-{endMonthObj.name}
+                    </span>
                     <span className="text-base font-black text-blue-600">
-                      {paramAvg > 0 ? paramAvg.toFixed(2) : '-'}
+                      {rangeParamAvg > 0 ? rangeParamAvg.toFixed(2) : '-'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      YTD: {ytdParamAvg > 0 ? ytdParamAvg.toFixed(2) : '-'}
                     </span>
                   </div>
                 </div>
 
-                {/* 12 Months Score Badge Chips Grid */}
+                {/* Months Score Badge Chips Grid in Selected Range */}
                 <div className="pt-2 border-t border-slate-200/80">
                   <span className="text-[10px] text-slate-500 font-bold block mb-1.5">
-                    Nilai Bulanan ({currentYear}):
+                    Nilai Periode Terpilih ({periodRangeLabel}):
                   </span>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
-                    {months.map((m) => {
+                    {monthsInRange.map((m) => {
                       const rep = reportByMonth[m.code];
                       const score = rep?.scores[param.id];
 
@@ -262,10 +420,10 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
       {mobileViewMode === 'monthly' && (
         <div className="block sm:hidden space-y-3 pt-1">
           <span className="text-xs font-bold text-slate-700 block">
-            Rapor MER Per Bulan ({currentYear}):
+            Rapor MER Periode {periodRangeLabel}:
           </span>
 
-          {months.map((m) => {
+          {monthsInRange.map((m) => {
             const rep = reportByMonth[m.code];
             if (!rep) {
               return (
@@ -321,7 +479,7 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
       )}
 
       {/* DESKTOP FULL MATRIX TABLE (and Mobile when 'table' tab selected) */}
-      <div className={`${mobileViewMode === 'table' ? 'block' : 'hidden sm:block'} overflow-x-auto rounded-xl border border-slate-200`}>
+      <div className={`${mobileViewMode === 'table' ? 'block' : 'hidden sm:block'} overflow-x-auto rounded-2xl border border-slate-200`}>
         <table className="w-full text-left text-xs border-collapse min-w-[760px]">
           <thead>
             <tr className="bg-slate-800 text-slate-100 font-bold">
@@ -331,35 +489,57 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <th className="p-2 border-b border-slate-700 text-center w-14">
                 Bobot
               </th>
-              {months.map((m) => (
-                <th
-                  key={m.code}
-                  className="p-2 border-b border-slate-700 text-center w-12"
-                >
-                  {m.name}
-                </th>
-              ))}
-              <th className="p-2 border-b border-slate-700 text-center w-16 bg-slate-900 text-blue-300 font-black">
-                Rerata
+              {months.map((m) => {
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
+                return (
+                  <th
+                    key={m.code}
+                    className={`p-2 border-b border-slate-700 text-center w-12 transition-colors ${
+                      isInRange ? 'bg-slate-700/90 text-white font-extrabold' : 'text-slate-400 opacity-60'
+                    }`}
+                  >
+                    {m.name}
+                  </th>
+                );
+              })}
+              {/* Rerata Periode Terpilih */}
+              <th className="p-2 border-b border-slate-700 text-center w-20 bg-blue-900 text-blue-200 font-black">
+                Rerata ({startMonthObj.name}-{endMonthObj.name})
+              </th>
+              {/* Rerata YTD Tahunan */}
+              <th className="p-2 border-b border-slate-700 text-center w-16 bg-slate-900 text-slate-300 font-black">
+                Rerata YTD
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-slate-700">
             {/* Dynamic Parameter Rows */}
             {parameters.map((param) => {
-              // Calculate parameter YTD avg
-              const paramScores = validReports
+              // Selected range parameter avg
+              const rangeParamScores = rangeReports
                 .map((r) => r.scores[param.id])
                 .filter((s): s is number => typeof s === 'number');
 
-              const paramAvg =
-                paramScores.length > 0
-                  ? paramScores.reduce((a, b) => a + b, 0) / paramScores.length
+              const rangeParamAvg =
+                rangeParamScores.length > 0
+                  ? rangeParamScores.reduce((a, b) => a + b, 0) / rangeParamScores.length
+                  : 0;
+
+              // Full YTD parameter avg
+              const ytdParamScores = allYtdReports
+                .map((r) => r.scores[param.id])
+                .filter((s): s is number => typeof s === 'number');
+
+              const ytdParamAvg =
+                ytdParamScores.length > 0
+                  ? ytdParamScores.reduce((a, b) => a + b, 0) / ytdParamScores.length
                   : 0;
 
               return (
                 <tr key={param.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-200 z-10 shadow-sm">
+                  <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-200 z-10 shadow-xs">
                     <div className="truncate max-w-[200px]" title={param.name}>
                       {param.name}
                     </div>
@@ -375,12 +555,17 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                   {months.map((m) => {
                     const rep = reportByMonth[m.code];
                     const score = rep?.scores[param.id];
+                    const isInRange =
+                      parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                      parseInt(m.code, 10) <= parseInt(endMonth, 10);
 
                     if (score === undefined || score === null) {
                       return (
                         <td
                           key={m.code}
-                          className="p-2 text-center text-slate-300 font-mono text-[11px]"
+                          className={`p-2 text-center text-slate-300 font-mono text-[11px] ${
+                            !isInRange ? 'opacity-40 bg-slate-50/30' : ''
+                          }`}
                         >
                           -
                         </td>
@@ -394,10 +579,15 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                     if (score === 1) badgeBg = 'bg-rose-100 text-rose-800 border-rose-300';
 
                     return (
-                      <td key={m.code} className="p-1.5 text-center">
+                      <td
+                        key={m.code}
+                        className={`p-1.5 text-center ${
+                          !isInRange ? 'opacity-40 bg-slate-50/30' : ''
+                        }`}
+                      >
                         <span
                           className={`inline-block w-8 py-0.5 rounded text-[11px] font-black border ${badgeBg}`}
-                          title={`Level ${score} (${score.toFixed(1)})`}
+                          title={`Nilai ${score} (${score.toFixed(1)})`}
                         >
                           {score.toFixed(1)}
                         </span>
@@ -405,8 +595,14 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                     );
                   })}
 
-                  <td className="p-2 text-center font-black text-slate-900 bg-slate-100/80">
-                    {paramAvg > 0 ? paramAvg.toFixed(2) : '-'}
+                  {/* Range Average Column */}
+                  <td className="p-2 text-center font-black text-blue-900 bg-blue-50/80 border-l border-blue-100">
+                    {rangeParamAvg > 0 ? rangeParamAvg.toFixed(2) : '-'}
+                  </td>
+
+                  {/* Full YTD Average Column */}
+                  <td className="p-2 text-center font-bold text-slate-700 bg-slate-100/80 border-l border-slate-200">
+                    {ytdParamAvg > 0 ? ytdParamAvg.toFixed(2) : '-'}
                   </td>
                 </tr>
               );
@@ -420,13 +616,24 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <td className="p-2 text-center text-slate-500">100%</td>
               {months.map((m) => {
                 const rep = reportByMonth[m.code];
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
                 return (
-                  <td key={m.code} className="p-2 text-center font-extrabold text-slate-800">
+                  <td
+                    key={m.code}
+                    className={`p-2 text-center font-extrabold text-slate-800 ${
+                      !isInRange ? 'opacity-40' : ''
+                    }`}
+                  >
                     {rep ? rep.baseScore.toFixed(2) : '-'}
                   </td>
                 );
               })}
-              <td className="p-2 text-center font-black text-slate-900 bg-slate-200/80">
+              <td className="p-2 text-center font-black text-blue-900 bg-blue-100/80 border-l border-blue-200">
+                {rangeBaseAvg > 0 ? rangeBaseAvg.toFixed(2) : '-'}
+              </td>
+              <td className="p-2 text-center font-black text-slate-900 bg-slate-200/80 border-l border-slate-300">
                 {ytdBaseAvg > 0 ? ytdBaseAvg.toFixed(2) : '-'}
               </td>
             </tr>
@@ -439,13 +646,24 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <td className="p-2 text-center text-emerald-600 font-bold">+Bonus</td>
               {months.map((m) => {
                 const rep = reportByMonth[m.code];
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
                 return (
-                  <td key={m.code} className="p-2 text-center font-extrabold text-emerald-700">
+                  <td
+                    key={m.code}
+                    className={`p-2 text-center font-extrabold text-emerald-700 ${
+                      !isInRange ? 'opacity-40' : ''
+                    }`}
+                  >
                     {rep && rep.meritPoint > 0 ? `+${rep.meritPoint.toFixed(2)}` : '-'}
                   </td>
                 );
               })}
-              <td className="p-2 text-center font-black text-emerald-800 bg-emerald-100/80">
+              <td className="p-2 text-center font-black text-emerald-900 bg-emerald-100/90 border-l border-emerald-200">
+                {rangeMeritAvg > 0 ? `+${rangeMeritAvg.toFixed(2)}` : '-'}
+              </td>
+              <td className="p-2 text-center font-black text-emerald-800 bg-emerald-100/50 border-l border-emerald-200">
                 {ytdMeritAvg > 0 ? `+${ytdMeritAvg.toFixed(2)}` : '-'}
               </td>
             </tr>
@@ -458,13 +676,24 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <td className="p-2 text-center text-rose-600 font-bold">-Penalti</td>
               {months.map((m) => {
                 const rep = reportByMonth[m.code];
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
                 return (
-                  <td key={m.code} className="p-2 text-center font-extrabold text-rose-700">
+                  <td
+                    key={m.code}
+                    className={`p-2 text-center font-extrabold text-rose-700 ${
+                      !isInRange ? 'opacity-40' : ''
+                    }`}
+                  >
                     {rep && rep.demeritPoint > 0 ? `-${rep.demeritPoint.toFixed(2)}` : '-'}
                   </td>
                 );
               })}
-              <td className="p-2 text-center font-black text-rose-800 bg-rose-100/80">
+              <td className="p-2 text-center font-black text-rose-900 bg-rose-100/90 border-l border-rose-200">
+                {rangeDemeritAvg > 0 ? `-${rangeDemeritAvg.toFixed(2)}` : '-'}
+              </td>
+              <td className="p-2 text-center font-black text-rose-800 bg-rose-100/50 border-l border-rose-200">
                 {ytdDemeritAvg > 0 ? `-${ytdDemeritAvg.toFixed(2)}` : '-'}
               </td>
             </tr>
@@ -477,13 +706,24 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <td className="p-2 text-center text-blue-200 text-xs">Total</td>
               {months.map((m) => {
                 const rep = reportByMonth[m.code];
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
                 return (
-                  <td key={m.code} className="p-2 text-center font-black">
+                  <td
+                    key={m.code}
+                    className={`p-2 text-center font-black ${
+                      !isInRange ? 'opacity-40' : ''
+                    }`}
+                  >
                     {rep ? rep.finalScore.toFixed(2) : '-'}
                   </td>
                 );
               })}
-              <td className="p-2 text-center font-black bg-blue-800 text-yellow-300">
+              <td className="p-2 text-center font-black bg-blue-900 text-amber-300 border-l border-blue-800">
+                {rangeFinalAvg > 0 ? rangeFinalAvg.toFixed(2) : '-'}
+              </td>
+              <td className="p-2 text-center font-black bg-slate-900 text-yellow-300 border-l border-slate-800">
                 {ytdFinalAvg > 0 ? ytdFinalAvg.toFixed(2) : '-'}
               </td>
             </tr>
@@ -496,16 +736,30 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               <td className="p-2 text-center text-slate-400 text-[10px]">Badge</td>
               {months.map((m) => {
                 const rep = reportByMonth[m.code];
+                const isInRange =
+                  parseInt(m.code, 10) >= parseInt(startMonth, 10) &&
+                  parseInt(m.code, 10) <= parseInt(endMonth, 10);
+
                 if (!rep) {
                   return (
-                    <td key={m.code} className="p-2 text-center text-slate-300 text-[10px]">
+                    <td
+                      key={m.code}
+                      className={`p-2 text-center text-slate-300 text-[10px] ${
+                        !isInRange ? 'opacity-40' : ''
+                      }`}
+                    >
                       -
                     </td>
                   );
                 }
                 const badge = getScoreCategoryBadge(rep.finalScore);
                 return (
-                  <td key={m.code} className="p-1.5 text-center">
+                  <td
+                    key={m.code}
+                    className={`p-1.5 text-center ${
+                      !isInRange ? 'opacity-40' : ''
+                    }`}
+                  >
                     <span
                       className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${badge.color}`}
                       title={badge.label}
@@ -515,7 +769,20 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                   </td>
                 );
               })}
-              <td className="p-2 text-center font-bold bg-slate-200/80">
+              <td className="p-2 text-center font-bold bg-blue-50/90 border-l border-blue-100">
+                {rangeFinalAvg > 0 ? (
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded text-[10px] font-black ${
+                      getScoreCategoryBadge(rangeFinalAvg).color
+                    }`}
+                  >
+                    {getScoreCategoryBadge(rangeFinalAvg).label}
+                  </span>
+                ) : (
+                  '-'
+                )}
+              </td>
+              <td className="p-2 text-center font-bold bg-slate-200/80 border-l border-slate-200">
                 {ytdFinalAvg > 0 ? (
                   <span
                     className={`inline-block px-2 py-0.5 rounded text-[10px] font-black ${
@@ -537,23 +804,23 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
       <div className="flex items-center space-x-4 text-[10px] text-slate-500 pt-2 border-t border-slate-100 flex-wrap gap-y-1">
         <span className="font-bold text-slate-700 flex items-center space-x-1">
           <Info className="w-3 h-3 text-blue-600" />
-          <span>Keterangan Skala Level Parameter:</span>
+          <span>Keterangan Skala Nilai Parameter:</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span>Level 4 (Sangat Baik / 4.0)</span>
+          <span>Nilai 4 (Sangat Baik / 4.0)</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-          <span>Level 3 (Baik / 3.0)</span>
+          <span>Nilai 3 (Baik / 3.0)</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span>Level 2 (Cukup / 2.0)</span>
+          <span>Nilai 2 (Cukup / 2.0)</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span>Level 1 (Kurang / 1.0)</span>
+          <span>Nilai 1 (Kurang / 1.0)</span>
         </span>
       </div>
     </div>
