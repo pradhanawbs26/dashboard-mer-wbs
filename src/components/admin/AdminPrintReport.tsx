@@ -251,7 +251,7 @@ export const AdminPrintReport: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0">
                     <img
-                      src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786444304/Logo_MER_u8qeow.png"
+                      src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png"
                       alt="Logo MER"
                       className="w-full h-full object-contain"
                       referrerPolicy="no-referrer"

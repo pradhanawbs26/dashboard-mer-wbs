@@ -33,7 +33,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center shadow-sm border border-slate-600/60 overflow-hidden shrink-0">
               <img
-                src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786444304/Logo_MER_u8qeow.png"
+                src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png"
                 alt="Logo MER"
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"

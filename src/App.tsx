@@ -15,7 +15,7 @@ const MainLayout: React.FC = () => {
 
   // Set favicon and title dynamically
   useEffect(() => {
-    const faviconUrl = 'https://res.cloudinary.com/dgjnlxf69/image/upload/v1786444304/Logo_MER_u8qeow.png';
+    const faviconUrl = 'https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png';
     const existingIcons = document.querySelectorAll("link[rel*='icon']");
     existingIcons.forEach((el) => el.setAttribute('href', faviconUrl));
     
