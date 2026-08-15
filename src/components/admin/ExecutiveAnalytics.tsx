@@ -45,6 +45,7 @@ export const ExecutiveAnalytics: React.FC = () => {
   const [endMonth, setEndMonth] = useState<string>('12');
   const [customYear, setCustomYear] = useState<string>('2026');
   const [selectedYtdSubNik, setSelectedYtdSubNik] = useState<string>('');
+  const [tableGlFilter, setTableGlFilter] = useState<string>('ALL');
 
   const months = [
     { code: '01', name: 'Jan', fullName: 'Januari' },
@@ -94,6 +95,19 @@ export const ExecutiveAnalytics: React.FC = () => {
 
   // Subordinates list
   const subEmployees = employees.filter((e) => e.role === 'subordinate');
+  const groupLeaders = employees.filter((e) => e.role === 'group_leader');
+  const displayedSubEmployees = subEmployees.filter((sub) => {
+    if (tableGlFilter === 'ALL') return true;
+    return (
+      sub.groupLeaderId === tableGlFilter ||
+      sub.groupLeaderName === tableGlFilter ||
+      groupLeaders.some(
+        (gl) =>
+          gl.nik === tableGlFilter &&
+          (sub.groupLeaderName === gl.name || sub.groupLeaderId === gl.id)
+      )
+    );
+  });
   const activeYtdSub = subEmployees.find((e) => e.nik === selectedYtdSubNik) || subEmployees[0];
 
   const headCoachObj = employees.find((e) => e.role === 'head_coach');
@@ -205,8 +219,6 @@ export const ExecutiveAnalytics: React.FC = () => {
   }));
 
   // Lowest Average Team MER per Group Leader
-  const groupLeaders = employees.filter((e) => e.role === 'group_leader');
-
   const glPerformanceList = groupLeaders.map((gl) => {
     const teamSubs = subEmployees.filter(
       (sub) => sub.groupLeaderNik === gl.nik || sub.groupLeaderName === gl.name
@@ -686,7 +698,7 @@ export const ExecutiveAnalytics: React.FC = () => {
 
       {/* Admin Horizontal MER Matrix Table */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 text-slate-800 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center space-x-2">
               <FileSpreadsheet className="w-5 h-5 text-blue-600 shrink-0" />
@@ -699,8 +711,36 @@ export const ExecutiveAnalytics: React.FC = () => {
             </p>
           </div>
 
-          <div className="text-xs text-slate-500 font-semibold bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            Total Subordinat: <strong className="text-slate-900">{subEmployees.length} Orang</strong>
+          {/* Group Leader Filter & Subordinate Counter */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs shadow-2xs">
+              <Users className="w-3.5 h-3.5 text-blue-600 mr-2 shrink-0" />
+              <span className="text-slate-500 font-bold mr-1.5 uppercase text-[10px] tracking-wider">Group Leader:</span>
+              <select
+                value={tableGlFilter}
+                onChange={(e) => setTableGlFilter(e.target.value)}
+                className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="ALL">Semua Group Leader ({subEmployees.length} Subordinat)</option>
+                {groupLeaders.map((gl) => {
+                  const count = subEmployees.filter(
+                    (s) =>
+                      s.groupLeaderId === gl.nik ||
+                      s.groupLeaderId === gl.id ||
+                      s.groupLeaderName === gl.name
+                  ).length;
+                  return (
+                    <option key={gl.id} value={gl.nik}>
+                      {gl.name} ({count} Subordinat)
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="text-xs text-slate-600 font-semibold bg-blue-50/70 border border-blue-200 px-3 py-1.5 rounded-xl">
+              Menampilkan: <strong className="text-blue-900">{displayedSubEmployees.length}</strong> / {subEmployees.length} Subordinat
+            </div>
           </div>
         </div>
 
@@ -738,7 +778,7 @@ export const ExecutiveAnalytics: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/80 bg-white">
-              {subEmployees.map((sub, idx) => {
+              {displayedSubEmployees.map((sub, idx) => {
                 const monthlyScores: (number | null)[] = months.map((m) => {
                   const rep = reports.find(
                     (r) => r.nik === sub.nik && r.period === `${activeTableYear}-${m.code}`
@@ -884,6 +924,14 @@ export const ExecutiveAnalytics: React.FC = () => {
                   </React.Fragment>
                 );
               })}
+              {displayedSubEmployees.length === 0 && (
+                <tr>
+                  <td colSpan={17} className="text-center py-10 text-slate-400 bg-slate-50/50">
+                    <p className="font-bold text-slate-600">Tidak ada data subordinat untuk filter Group Leader ini.</p>
+                    <p className="text-xs text-slate-400 mt-1">Pilih "Semua Group Leader" untuk melihat seluruh anggota tim.</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

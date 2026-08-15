@@ -1,7 +1,23 @@
 import React, { useState } from 'react';
 import { Employee, MonthlyReport, DynamicParameter } from '../../types';
-import { getScoreCategoryBadge, formatPeriodLabel } from '../../utils/calculations';
-import { Calendar, FileSpreadsheet, Award, CheckCircle2, TrendingUp, Info } from 'lucide-react';
+import {
+  getScoreCategoryBadge,
+  formatPeriodLabel,
+  getParameterIndicatorDetails,
+} from '../../utils/calculations';
+import {
+  Calendar,
+  FileSpreadsheet,
+  Award,
+  CheckCircle2,
+  TrendingUp,
+  Info,
+  X,
+  Activity,
+  Sparkles,
+  Layers,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface YtdParameterTableProps {
   employee: Employee;
@@ -21,6 +37,14 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
   const [currentYear, setCurrentYear] = useState<string>(selectedYear);
   const [startMonth, setStartMonth] = useState<string>('01');
   const [endMonth, setEndMonth] = useState<string>('12');
+  const [selectedScoreDetail, setSelectedScoreDetail] = useState<{
+    parameter: DynamicParameter;
+    monthCode: string;
+    monthName: string;
+    year: string;
+    report?: MonthlyReport;
+    score: number;
+  } | null>(null);
 
   const months = [
     { code: '01', name: 'Jan', fullName: 'Januari' },
@@ -399,13 +423,30 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                       if (score === 1) badgeClass = 'bg-rose-100 text-rose-800 border-rose-300 font-black';
 
                       return (
-                        <div
+                        <button
                           key={m.code}
-                          className={`p-1 rounded-lg border text-[10px] flex flex-col items-center justify-center ${badgeClass}`}
+                          type="button"
+                          onClick={() => {
+                            if (score !== undefined) {
+                              setSelectedScoreDetail({
+                                parameter: param,
+                                monthCode: m.code,
+                                monthName: m.fullName,
+                                year: currentYear,
+                                report: rep,
+                                score,
+                              });
+                            }
+                          }}
+                          className={`p-1 rounded-lg border text-[10px] flex flex-col items-center justify-center transition-all ${badgeClass} ${
+                            score !== undefined
+                              ? 'cursor-pointer hover:scale-105 active:scale-95 shadow-2xs'
+                              : 'opacity-60 cursor-default'
+                          }`}
                         >
                           <span className="text-[9px] opacity-75">{m.name}</span>
                           <span className="text-xs">{score !== undefined ? score.toFixed(1) : '-'}</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -540,12 +581,9 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
               return (
                 <tr key={param.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="p-2.5 font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-200 z-10 shadow-xs">
-                    <div className="truncate max-w-[200px]" title={param.name}>
+                    <div className="truncate max-w-[220px]" title={param.name}>
                       {param.name}
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400 font-normal">
-                      [{param.code}]
-                    </span>
                   </td>
                   <td className="p-2 text-center font-bold text-blue-600 bg-slate-50/50">
                     {param.weight}%
@@ -585,12 +623,23 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
                           !isInRange ? 'opacity-40 bg-slate-50/30' : ''
                         }`}
                       >
-                        <span
-                          className={`inline-block w-8 py-0.5 rounded text-[11px] font-black border ${badgeBg}`}
-                          title={`Nilai ${score} (${score.toFixed(1)})`}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedScoreDetail({
+                              parameter: param,
+                              monthCode: m.code,
+                              monthName: m.fullName,
+                              year: currentYear,
+                              report: rep,
+                              score,
+                            })
+                          }
+                          className={`inline-block w-8 py-0.5 rounded text-[11px] font-black border transition-all cursor-pointer hover:scale-110 active:scale-95 hover:shadow-md ring-offset-1 hover:ring-2 hover:ring-blue-400 ${badgeBg}`}
+                          title={`Klik untuk melihat penyebab aktual ${param.name} (${m.name} ${currentYear}): Nilai ${score.toFixed(1)}`}
                         >
                           {score.toFixed(1)}
-                        </span>
+                        </button>
                       </td>
                     );
                   })}
@@ -800,29 +849,185 @@ export const YtdParameterTable: React.FC<YtdParameterTableProps> = ({
         </table>
       </div>
 
-      {/* Legend Note */}
-      <div className="flex items-center space-x-4 text-[10px] text-slate-500 pt-2 border-t border-slate-100 flex-wrap gap-y-1">
-        <span className="font-bold text-slate-700 flex items-center space-x-1">
-          <Info className="w-3 h-3 text-blue-600" />
-          <span>Keterangan Skala Nilai Parameter:</span>
-        </span>
-        <span className="flex items-center space-x-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span>Nilai 4 (Sangat Baik / 4.0)</span>
-        </span>
-        <span className="flex items-center space-x-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-          <span>Nilai 3 (Baik / 3.0)</span>
-        </span>
-        <span className="flex items-center space-x-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span>Nilai 2 (Cukup / 2.0)</span>
-        </span>
-        <span className="flex items-center space-x-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span>Nilai 1 (Kurang / 1.0)</span>
-        </span>
+      {/* Legend Note & Click Hint */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-[10px] text-slate-500 pt-3 border-t border-slate-100">
+        <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+          <span className="font-bold text-slate-700 flex items-center space-x-1">
+            <Info className="w-3 h-3 text-blue-600" />
+            <span>Skala Nilai:</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span>4 (Sangat Baik)</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span>3 (Baik)</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span>2 (Cukup)</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            <span>1 (Kurang)</span>
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-1.5 text-blue-800 font-bold bg-blue-50/80 px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+          <Sparkles className="w-3 h-3 text-blue-600 shrink-0" />
+          <span>Klik angka nilai parameter pada tabel untuk melihat penyebab aktual & data riil</span>
+        </div>
       </div>
+
+      {/* Parameter Score Detail / Actual Cause Popup Modal */}
+      {selectedScoreDetail && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setSelectedScoreDetail(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-start justify-between relative">
+              <div className="flex items-center space-x-3 pr-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white leading-snug">
+                    {selectedScoreDetail.parameter.name}
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Periode: <strong className="text-blue-300">{selectedScoreDetail.monthName} {selectedScoreDetail.year}</strong> • <strong className="text-white">{employee.name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedScoreDetail(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              {(() => {
+                const details = getParameterIndicatorDetails(
+                  selectedScoreDetail.parameter,
+                  selectedScoreDetail.report,
+                  selectedScoreDetail.score
+                );
+
+                const score = selectedScoreDetail.score;
+                let scoreBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                let levelLabel = 'Level 4: Sangat Baik / Memuaskan';
+                if (score === 3) {
+                  scoreBadgeClass = 'bg-blue-100 text-blue-800 border-blue-300';
+                  levelLabel = 'Level 3: Baik / Memenuhi Standar';
+                } else if (score === 2) {
+                  scoreBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                  levelLabel = 'Level 2: Cukup / Perlu Perhatian';
+                } else if (score === 1) {
+                  scoreBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+                  levelLabel = 'Level 1: Kurang / Perlu Evaluasi';
+                }
+
+                const contribution = ((score * selectedScoreDetail.parameter.weight) / 100).toFixed(2);
+
+                return (
+                  <>
+                    {/* Score & Level Display Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                          Perolehan Nilai Parameter
+                        </span>
+                        <span className={`inline-block mt-1 text-xs font-black px-2.5 py-1 rounded-lg border ${scoreBadgeClass}`}>
+                          {levelLabel}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-baseline space-x-1 justify-end">
+                          <span className="text-3xl font-black text-slate-900">
+                            {score.toFixed(1)}
+                          </span>
+                          <span className="text-xs text-slate-400 font-bold">/ 4.0</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 block font-medium">
+                          Kontribusi: <strong className="text-blue-700">{contribution} Poin</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Prominent Highlight: Penyebab Aktual / Indikator Riil */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50/70 border-2 border-blue-300 rounded-xl p-4 shadow-xs space-y-2">
+                      <div className="flex items-center space-x-2 text-blue-900 font-extrabold text-xs uppercase tracking-wider">
+                        <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Penyebab Aktual & Indikator Riil</span>
+                      </div>
+                      <div className="bg-white/95 border border-blue-200 rounded-lg p-3 shadow-2xs">
+                        <p className="text-base sm:text-lg font-black text-blue-950 leading-relaxed">
+                          {details.indicatorText}
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-blue-700/80 font-medium">
+                        Data aktual operasional yang menjadi dasar perolehan nilai parameter ini pada periode {selectedScoreDetail.monthName} {selectedScoreDetail.year}.
+                      </p>
+                    </div>
+
+                    {/* Standard Rubric / Achieved Criteria */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center space-x-2 text-slate-700 font-bold text-xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Kriteria Standar Evaluasi yang Terpenuhi</span>
+                      </div>
+                      <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 leading-relaxed font-medium">
+                        {details.criteriaText}
+                      </p>
+                    </div>
+
+                    {/* Additional Metadata: Data Source & Evaluator */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                          Sumber Data Acuan
+                        </span>
+                        <p className="font-bold text-slate-800 mt-0.5">
+                          {details.sourceText}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                          Penilai (Evaluator)
+                        </span>
+                        <p className="font-bold text-slate-800 mt-0.5 truncate">
+                          {selectedScoreDetail.report?.evaluatorName || employee.groupLeaderName || 'Group Leader'}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-3.5 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setSelectedScoreDetail(null)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

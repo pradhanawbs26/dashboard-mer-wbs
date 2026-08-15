@@ -52,7 +52,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
 
   return (
     <div className="fixed bottom-0 inset-x-0 bg-[#1e293b]/95 backdrop-blur-md border-t border-slate-700 z-30 shadow-lg print:hidden">
-      <div className="max-w-md mx-auto flex items-center justify-around py-2 px-1">
+      <div className="max-w-3xl sm:max-w-4xl md:max-w-5xl mx-auto flex items-center justify-around py-2 px-2 sm:px-6 gap-1 sm:gap-3 md:gap-6">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -60,20 +60,20 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-all ${
+              className={`flex flex-col items-center justify-center py-1.5 px-2 sm:px-3 rounded-xl transition-all cursor-pointer ${
                 isActive
                   ? 'text-blue-400 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
               }`}
             >
               <div
                 className={`p-1.5 rounded-xl transition-all ${
-                  isActive ? 'bg-blue-600/20 text-blue-400 scale-110' : ''
+                  isActive ? 'bg-blue-600/20 text-blue-400 scale-105' : ''
                 }`}
               >
                 <Icon className="w-5 h-5" />
               </div>
-              <span className="text-[10px] sm:text-xs mt-1 truncate max-w-[70px]">
+              <span className="text-[10px] sm:text-xs mt-1 font-medium whitespace-nowrap">
                 {tab.label}
               </span>
             </button>
