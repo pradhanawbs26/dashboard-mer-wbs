@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserSettingsModal } from '../common/UserSettingsModal';
 import { ProfileMenuDropdown } from '../common/ProfileMenuDropdown';
@@ -6,6 +6,7 @@ import { YtdParameterTable } from '../common/YtdParameterTable';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
+  getParameterIndicatorDetails,
 } from '../../utils/calculations';
 import {
   Users,
@@ -21,6 +22,13 @@ import {
   UserCheck,
   CheckCircle,
   Settings,
+  ChevronDown,
+  X,
+  Check,
+  Database,
+  Layers,
+  Info,
+  Sparkles,
 } from 'lucide-react';
 import {
   BarChart,
@@ -51,8 +59,33 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
   const [selectedMemberNik, setSelectedMemberNik] = useState<string | null>(null);
   const [memberModalTab, setMemberModalTab] = useState<'period' | 'ytd'>('ytd');
   const [selectedYtdNik, setSelectedYtdNik] = useState<string>('');
+  const [ytdSearchQuery, setYtdSearchQuery] = useState<string>('');
+  const [isYtdDropdownOpen, setIsYtdDropdownOpen] = useState<boolean>(false);
+  const ytdDropdownRef = useRef<HTMLDivElement>(null);
+  const ytdSearchInputRef = useRef<HTMLInputElement>(null);
+
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'photo' | 'password'>('photo');
+
+  // Close YTD dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ytdDropdownRef.current && !ytdDropdownRef.current.contains(event.target as Node)) {
+        setIsYtdDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Focus YTD search input when opened
+  useEffect(() => {
+    if (isYtdDropdownOpen) {
+      setTimeout(() => {
+        ytdSearchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isYtdDropdownOpen]);
 
   if (!currentUser) return null;
 
@@ -72,6 +105,19 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
       : employees.filter(
           (e) => e.groupLeaderId === currentUser.nik || e.groupLeaderName === currentUser.name
         );
+
+  // Filtered subordinates for YTD dropdown
+  const filteredYtdSubordinates = useMemo(() => {
+    if (!ytdSearchQuery.trim()) return mySubordinates;
+    const q = ytdSearchQuery.toLowerCase().trim();
+    return mySubordinates.filter(
+      (sub) =>
+        sub.name.toLowerCase().includes(q) ||
+        sub.nik.toLowerCase().includes(q) ||
+        (sub.department || '').toLowerCase().includes(q) ||
+        (sub.equipmentType || '').toLowerCase().includes(q)
+    );
+  }, [mySubordinates, ytdSearchQuery]);
 
   // Active YTD employee (directly to subordinates)
   const activeYtdEmployee =
@@ -289,26 +335,111 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
       {/* Tab: Rapor YTD Tim & Personal */}
       {activeTab === 'ytd_report' && (
         <div className="space-y-4">
-          {/* Employee Picker Dropdown Card */}
+          {/* Searchable Subordinate Picker Dropdown */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
+            <div className="w-full sm:w-auto relative" ref={ytdDropdownRef}>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Pilih Karyawan / Subordinat Tim:
               </label>
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-blue-600 shrink-0" />
-                <select
-                  value={activeYtdEmployee.nik}
-                  onChange={(e) => setSelectedYtdNik(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-600 cursor-pointer max-w-xs sm:max-w-md"
-                >
-                  {mySubordinates.map((sub) => (
-                    <option key={sub.id} value={sub.nik}>
-                      {sub.name} (NIK: {sub.nik}) • {sub.category} - {sub.department}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsYtdDropdownOpen((prev) => !prev)}
+                className="w-full sm:w-96 bg-slate-50 hover:bg-slate-100/80 border border-slate-300 transition-all text-left rounded-xl px-3.5 py-2 flex items-center justify-between shadow-2xs cursor-pointer"
+              >
+                <div className="flex items-center space-x-2.5 truncate">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                    {activeYtdEmployee.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="truncate">
+                    <span className="font-bold text-slate-900 text-xs truncate block">
+                      {activeYtdEmployee.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      NIK: {activeYtdEmployee.nik} • {activeYtdEmployee.category}
+                    </span>
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ml-2 ${
+                    isYtdDropdownOpen ? 'rotate-180 text-blue-600' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Search Popover */}
+              {isYtdDropdownOpen && (
+                <div className="absolute z-50 top-full left-0 mt-1.5 w-full sm:w-96 bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-2.5 bg-slate-50 border-b border-slate-200">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        ref={ytdSearchInputRef}
+                        type="text"
+                        value={ytdSearchQuery}
+                        onChange={(e) => setYtdSearchQuery(e.target.value)}
+                        placeholder="Ketik NIK atau Nama anggota tim..."
+                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-blue-600"
+                      />
+                      {ytdSearchQuery && (
+                        <button
+                          onClick={() => setYtdSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
+                    {filteredYtdSubordinates.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        Tidak ada anggota tim yang cocok dengan pencarian "{ytdSearchQuery}".
+                      </div>
+                    ) : (
+                      filteredYtdSubordinates.map((sub) => {
+                        const isSelected = sub.nik === activeYtdEmployee.nik;
+                        return (
+                          <div
+                            key={sub.id}
+                            onClick={() => {
+                              setSelectedYtdNik(sub.nik);
+                              setIsYtdDropdownOpen(false);
+                              setYtdSearchQuery('');
+                            }}
+                            className={`p-2.5 flex items-center justify-between cursor-pointer transition-colors text-xs ${
+                              isSelected ? 'bg-blue-50/80 font-bold text-blue-900' : 'hover:bg-slate-50 text-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 truncate">
+                              <div
+                                className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                                  isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {sub.name.charAt(0)}
+                              </div>
+                              <div className="truncate">
+                                <p className="truncate font-semibold">{sub.name}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">
+                                  NIK: {sub.nik} • {sub.category} - {sub.department}
+                                </p>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0 ml-2" />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="text-xs text-slate-500 font-medium sm:text-right">
+              Total <strong className="text-slate-800">{mySubordinates.length}</strong> Subordinat Terdaftar
             </div>
           </div>
 
@@ -595,34 +726,83 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                     </div>
 
                     {/* Breakdown by Parameters */}
-                    <div className="space-y-2">
-                      <p className="font-bold text-slate-800">
-                        Nilai Per Parameter (Skala 1-4):
-                      </p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-slate-800 flex items-center space-x-1.5">
+                          <Layers className="w-4 h-4 text-blue-600" />
+                          <span>Evaluasi Parameter MER & Data Indikator Input:</span>
+                        </p>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          Skala Nilai 1 (Min) s.d. 4 (Maks)
+                        </span>
+                      </div>
+
                       {(memberDetailObj.employee.category === 'Operator'
                         ? operatorParameters
                         : nonomParameters
                       ).map((p) => {
                         const scoreVal = memberDetailObj.report?.scores[p.id] || 0;
+                        const indDetails = getParameterIndicatorDetails(p, memberDetailObj.report);
+                        const weightContribution = ((scoreVal * p.weight) / 100).toFixed(2);
+
                         return (
                           <div
                             key={p.id}
-                            className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between"
+                            className="bg-slate-50 hover:bg-slate-100/60 transition-colors p-3.5 rounded-xl border border-slate-200 space-y-2.5"
                           >
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {p.name}{' '}
-                                <span className="text-blue-600 text-[10px]">
-                                  ({p.weight}%)
-                                </span>
-                              </p>
-                              <p className="text-[10px] text-slate-500">
-                                {p.criteria[scoreVal as 1 | 2 | 3 | 4] || '-'}
-                              </p>
+                            {/* Header: Title, Weight & Score */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <p className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                                    {p.name}
+                                  </p>
+                                  <span className="text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded text-[10px] font-bold">
+                                    Bobot {p.weight}%
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  {p.description}
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="inline-flex items-center space-x-1 bg-white border border-blue-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                                  <span className="text-[10px] text-slate-500 font-semibold">Skor:</span>
+                                  <span className="font-black text-sm text-blue-600">{scoreVal}</span>
+                                  <span className="text-[10px] text-slate-400">/ 4</span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                  +{weightContribution} poin
+                                </div>
+                              </div>
                             </div>
-                            <span className="font-black text-lg text-blue-600 ml-2">
-                              {scoreVal}
-                            </span>
+
+                            {/* Indicator Data Badge & Details */}
+                            <div className="bg-white border border-slate-200/90 rounded-lg p-2.5 space-y-1.5 text-[11px]">
+                              {/* Indicator Value (Data yang diinput) */}
+                              <div className="flex items-start space-x-1.5">
+                                <span className="font-bold text-slate-700 shrink-0 flex items-center space-x-1">
+                                  <Database className="w-3 h-3 text-blue-600 inline" />
+                                  <span>Data Indikator Riil:</span>
+                                </span>
+                                <span className="font-extrabold text-blue-900 bg-blue-50/90 border border-blue-200/80 px-2 py-0.5 rounded font-mono">
+                                  {indDetails.indicatorText}
+                                </span>
+                              </div>
+
+                              {/* Rubric Criteria for this Level */}
+                              <div className="flex items-start space-x-1.5">
+                                <span className="font-bold text-slate-600 shrink-0">Kriteria Level {scoreVal || '-'}:</span>
+                                <span className="text-slate-700 font-medium leading-relaxed">
+                                  {indDetails.criteriaText}
+                                </span>
+                              </div>
+
+                              {/* Data Source */}
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+                                <span>Sumber Data Operasional: <strong className="text-slate-600">{indDetails.sourceText}</strong></span>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

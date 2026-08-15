@@ -500,3 +500,74 @@ export function formatPeriodLabel(periodString: string): string {
   const monthIndex = parseInt(month, 10) - 1;
   return `${monthNames[monthIndex] || month} ${year}`;
 }
+
+export function getParameterIndicatorDetails(
+  param: DynamicParameter,
+  report?: MonthlyReport | null,
+  overrideScore?: number
+): {
+  indicatorText: string;
+  criteriaText: string;
+  sourceText: string;
+  level: number;
+} {
+  const scoreVal = overrideScore !== undefined ? overrideScore : (report?.scores?.[param.id] || 0);
+  const criteriaText = param.criteria?.[scoreVal as 1 | 2 | 3 | 4] || 'Belum dievaluasi';
+  const sourceText = param.dataSource || 'Data Operasional';
+
+  const raw = report?.rawMetrics;
+  let indicatorText = '';
+
+  if (raw) {
+    if (param.id === 'op_discipline' || param.id === 'non_disiplin') {
+      const atr = raw['ATR Kehadiran'] || (raw.atrRate ? `${raw.atrRate}%` : '');
+      const late = raw['Terlambat / Mangkir'] || (raw.terlambatCount !== undefined ? `${raw.terlambatCount}x Terlambat` : '');
+      indicatorText = [atr ? `ATR: ${atr}` : '', late ? `Disiplin: ${late}` : ''].filter(Boolean).join(' • ');
+    } else if (param.id === 'op_productivity') {
+      const prod = raw['Productivity'] || (raw.productivityRate ? `${raw.productivityRate}%` : '');
+      indicatorText = prod ? `Pencapaian: ${prod}` : '';
+    } else if (param.id === 'op_safety' || param.id === 'non_safety') {
+      const sap = raw['SAP Hazard Report'] || (raw.sapCount !== undefined ? `${raw.sapCount} Laporan` : '');
+      const inc = raw['Insiden K3'] || (raw.incidentCount !== undefined ? `${raw.incidentCount} Insiden` : '');
+      indicatorText = [sap ? `SAP: ${sap}` : '', inc ? `Insiden: ${inc}` : ''].filter(Boolean).join(' • ');
+    } else if (param.id === 'op_machine') {
+      const mis = raw['Misoperasi'] || (raw.misoperasiCount !== undefined ? `${raw.misoperasiCount}x` : '');
+      indicatorText = mis ? `Misoperasi: ${mis}` : '';
+    } else if (param.id === 'op_daily_report' || param.id === 'non_work_quality') {
+      const ts = raw['Timesheet Status'] || raw['Kualitas Administrasi'] || raw.timesheetStatus || '';
+      indicatorText = ts ? `Status: ${ts}` : '';
+    } else if (param.id === 'non_teamwork') {
+      const tw = raw['Teamwork & Respon'] || (raw.genericValue !== undefined ? `${raw.genericValue} Poin` : '');
+      indicatorText = tw ? `Skor Respon: ${tw}` : '';
+    } else {
+      const direct = raw[param.name] || raw[param.code];
+      if (direct) indicatorText = `Data: ${direct}`;
+    }
+  }
+
+  // If no explicit raw metric was stored, synthesize an accurate indicator from achieved criteria
+  if (!indicatorText && scoreVal > 0) {
+    if (param.id === 'op_discipline' || param.id === 'non_disiplin') {
+      indicatorText = scoreVal === 4 ? 'ATR: ≥ 98% (0 Terlambat/Mangkir)' : scoreVal === 3 ? 'ATR: 96% - 98%' : scoreVal === 2 ? 'ATR: 94% - 96%' : 'ATR: < 94%';
+    } else if (param.id === 'op_productivity') {
+      indicatorText = scoreVal === 4 ? 'Pencapaian: ≥ 105%' : scoreVal === 3 ? 'Pencapaian: 100% - 105%' : scoreVal === 2 ? 'Pencapaian: 90% - 100%' : 'Pencapaian: < 90%';
+    } else if (param.id === 'op_safety' || param.id === 'non_safety') {
+      indicatorText = scoreVal === 4 ? 'SAP: ≥ 4 Laporan & 0 Insiden' : scoreVal === 3 ? 'SAP: 3 Laporan & 0 Insiden' : scoreVal === 2 ? 'SAP: 1-2 Laporan' : 'SAP: 0 Laporan / Ada Insiden';
+    } else if (param.id === 'op_machine') {
+      indicatorText = scoreVal === 4 ? 'Misoperasi: 0x & Temuan MTO 0x' : scoreVal === 3 ? 'Misoperasi: 1x' : scoreVal === 2 ? 'Misoperasi: 2x' : 'Misoperasi: ≥ 3x / Damage';
+    } else if (param.id === 'op_daily_report' || param.id === 'non_work_quality') {
+      indicatorText = scoreVal === 4 ? 'Status: Lengkap & Valid' : scoreVal === 3 ? 'Status: Lengkap' : scoreVal === 2 ? 'Status: Terlambat' : 'Status: Tidak Mengumpulkan';
+    } else if (param.id === 'non_teamwork') {
+      indicatorText = scoreVal === 4 ? 'Skor Respon: ≥ 90 Poin (Proaktif)' : scoreVal === 3 ? 'Skor Respon: ≥ 80 Poin' : scoreVal === 2 ? 'Skor Respon: ≥ 70 Poin' : 'Skor Respon: < 70 Poin';
+    } else {
+      indicatorText = `Kriteria: ${criteriaText.split('/')[0].trim()}`;
+    }
+  }
+
+  return {
+    indicatorText: indicatorText || 'Data indikator standar',
+    criteriaText,
+    sourceText,
+    level: scoreVal,
+  };
+}

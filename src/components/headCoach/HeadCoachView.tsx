@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserSettingsModal } from '../common/UserSettingsModal';
 import { YtdParameterTable } from '../common/YtdParameterTable';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
+  getParameterIndicatorDetails,
 } from '../../utils/calculations';
 import {
   Users,
@@ -24,6 +25,10 @@ import {
   Eye,
   Briefcase,
   Sparkles,
+  ChevronDown,
+  Check,
+  Database,
+  Calendar,
 } from 'lucide-react';
 import {
   BarChart,
@@ -52,12 +57,39 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGlNik, setSelectedGlNik] = useState<string | null>(null);
   const [selectedYtdNik, setSelectedYtdNik] = useState<string>('');
+  const [ytdSearchQuery, setYtdSearchQuery] = useState<string>('');
+  const [isYtdDropdownOpen, setIsYtdDropdownOpen] = useState<boolean>(false);
+  const ytdDropdownRef = useRef<HTMLDivElement>(null);
+  const ytdSearchInputRef = useRef<HTMLInputElement>(null);
+
+  const [glModalSearchTerm, setGlModalSearchTerm] = useState<string>('');
+
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'photo' | 'password'>('photo');
 
   // Subordinate detail modal states
   const [selectedSubNik, setSelectedSubNik] = useState<string | null>(null);
   const [subModalTab, setSubModalTab] = useState<'period' | 'ytd'>('ytd');
+
+  // Close YTD dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ytdDropdownRef.current && !ytdDropdownRef.current.contains(event.target as Node)) {
+        setIsYtdDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Focus YTD search input when opened
+  useEffect(() => {
+    if (isYtdDropdownOpen) {
+      setTimeout(() => {
+        ytdSearchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isYtdDropdownOpen]);
 
   if (!currentUser) return null;
 
@@ -153,7 +185,24 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
     : null;
 
   // YTD Employee selector (Subordinates & Group Leaders)
-  const selectableYtdEmployees = [...myGroupLeaders, ...allHCSubordinates];
+  const selectableYtdEmployees = useMemo(() => {
+    return [...myGroupLeaders, ...allHCSubordinates];
+  }, [myGroupLeaders, allHCSubordinates]);
+
+  // Filtered list for YTD picker in Head Coach view
+  const filteredYtdList = useMemo(() => {
+    if (!ytdSearchQuery.trim()) return selectableYtdEmployees;
+    const q = ytdSearchQuery.toLowerCase().trim();
+    return selectableYtdEmployees.filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(q) ||
+        emp.nik.toLowerCase().includes(q) ||
+        (emp.department || '').toLowerCase().includes(q) ||
+        (emp.role === 'group_leader' ? 'group leader gl' : (emp.category || '')).toLowerCase().includes(q) ||
+        (emp.equipmentType || '').toLowerCase().includes(q)
+    );
+  }, [selectableYtdEmployees, ytdSearchQuery]);
+
   const activeYtdEmployee =
     selectableYtdEmployees.find((e) => e.nik === selectedYtdNik) ||
     allHCSubordinates[0] ||
@@ -318,33 +367,120 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
       {activeTab === 'ytd_report' && (
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
+            <div className="w-full sm:w-auto relative" ref={ytdDropdownRef}>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Pilih Karyawan (Group Leader atau Subordinat):
               </label>
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-amber-600 shrink-0" />
-                <select
-                  value={activeYtdEmployee.nik}
-                  onChange={(e) => setSelectedYtdNik(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-amber-600 cursor-pointer max-w-xs sm:max-w-md"
-                >
-                  <optgroup label="Group Leaders">
-                    {myGroupLeaders.map((gl) => (
-                      <option key={gl.id} value={gl.nik}>
-                        [GL] {gl.name} (NIK: {gl.nik}) • {gl.department}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Subordinat Operasional">
-                    {allHCSubordinates.map((sub) => (
-                      <option key={sub.id} value={sub.nik}>
-                        {sub.name} (NIK: {sub.nik}) • {sub.category} - {sub.department}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
+
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsYtdDropdownOpen((prev) => !prev)}
+                className="w-full sm:w-96 bg-slate-50 hover:bg-slate-100/80 border border-slate-300 transition-all text-left rounded-xl px-3.5 py-2 flex items-center justify-between shadow-2xs cursor-pointer"
+              >
+                <div className="flex items-center space-x-2.5 truncate">
+                  <div className={`w-6 h-6 rounded-lg font-bold flex items-center justify-center shrink-0 text-xs ${
+                    activeYtdEmployee.role === 'group_leader' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {activeYtdEmployee.role === 'group_leader' ? 'GL' : activeYtdEmployee.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="truncate">
+                    <span className="font-bold text-slate-900 text-xs truncate block">
+                      {activeYtdEmployee.role === 'group_leader' ? `[GL] ${activeYtdEmployee.name}` : activeYtdEmployee.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      NIK: {activeYtdEmployee.nik} • {activeYtdEmployee.role === 'group_leader' ? 'Group Leader' : activeYtdEmployee.category} - {activeYtdEmployee.department}
+                    </span>
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ml-2 ${
+                    isYtdDropdownOpen ? 'rotate-180 text-amber-600' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Search Popover */}
+              {isYtdDropdownOpen && (
+                <div className="absolute z-50 top-full left-0 mt-1.5 w-full sm:w-96 bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-2.5 bg-slate-50 border-b border-slate-200">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        ref={ytdSearchInputRef}
+                        type="text"
+                        value={ytdSearchQuery}
+                        onChange={(e) => setYtdSearchQuery(e.target.value)}
+                        placeholder="Ketik NIK atau Nama GL / Subordinat..."
+                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-amber-600"
+                      />
+                      {ytdSearchQuery && (
+                        <button
+                          onClick={() => setYtdSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                    {filteredYtdList.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        Tidak ditemukan karyawan dengan kata kunci "{ytdSearchQuery}".
+                      </div>
+                    ) : (
+                      filteredYtdList.map((emp) => {
+                        const isSelected = emp.nik === activeYtdEmployee.nik;
+                        const isGl = emp.role === 'group_leader';
+                        return (
+                          <div
+                            key={emp.id}
+                            onClick={() => {
+                              setSelectedYtdNik(emp.nik);
+                              setIsYtdDropdownOpen(false);
+                              setYtdSearchQuery('');
+                            }}
+                            className={`p-2.5 flex items-center justify-between cursor-pointer transition-colors text-xs ${
+                              isSelected
+                                ? 'bg-amber-50/80 font-bold text-amber-900'
+                                : 'hover:bg-slate-50 text-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 truncate">
+                              <div
+                                className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                                  isSelected
+                                    ? 'bg-amber-600 text-white'
+                                    : isGl
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {isGl ? 'GL' : emp.name.charAt(0)}
+                              </div>
+                              <div className="truncate">
+                                <p className="truncate font-semibold">
+                                  {isGl ? `[GL] ${emp.name}` : emp.name}
+                                </p>
+                                <p className="text-[10px] text-slate-500 font-mono">
+                                  NIK: {emp.nik} • {isGl ? 'Group Leader' : emp.category} - {emp.department}
+                                </p>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-amber-600 shrink-0 ml-2" />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="text-xs text-slate-500 font-medium sm:text-right">
+              Total <strong className="text-slate-800">{selectableYtdEmployees.length}</strong> Karyawan ({myGroupLeaders.length} GL + {allHCSubordinates.length} Subordinat)
             </div>
           </div>
 
@@ -572,11 +708,32 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
               </span>
             </div>
 
-            {/* Subordinates Table */}
-            <div>
-              <h4 className="font-bold text-xs text-slate-800 mb-2">
-                Daftar Subordinat di Bawah GL {activeGlDetail.groupLeader.name}:
-              </h4>
+            {/* Subordinates Table Header with Search */}
+            <div className="space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="font-bold text-xs text-slate-800">
+                  Daftar Subordinat di Bawah GL {activeGlDetail.groupLeader.name}:
+                </h4>
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={glModalSearchTerm}
+                    onChange={(e) => setGlModalSearchTerm(e.target.value)}
+                    placeholder="Cari subordinat (NIK/Nama)..."
+                    className="w-full pl-8 pr-7 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-amber-600"
+                  />
+                  {glModalSearchTerm && (
+                    <button
+                      onClick={() => setGlModalSearchTerm('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-100 font-bold text-slate-600 border-b border-slate-200">
@@ -588,56 +745,67 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {activeGlDetail.subReports.map((sr) => {
-                      const badge = getScoreCategoryBadge(sr.finalScore);
-                      return (
-                        <tr key={sr.subordinate.id} className="hover:bg-slate-50">
-                          <td className="p-3">
-                            <div className="flex items-center space-x-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                                {sr.subordinate.name.charAt(0)}
+                    {activeGlDetail.subReports
+                      .filter((sr) => {
+                        if (!glModalSearchTerm.trim()) return true;
+                        const q = glModalSearchTerm.toLowerCase().trim();
+                        return (
+                          sr.subordinate.name.toLowerCase().includes(q) ||
+                          sr.subordinate.nik.toLowerCase().includes(q) ||
+                          sr.subordinate.position.toLowerCase().includes(q) ||
+                          (sr.subordinate.equipmentType || '').toLowerCase().includes(q)
+                        );
+                      })
+                      .map((sr) => {
+                        const badge = getScoreCategoryBadge(sr.finalScore);
+                        return (
+                          <tr key={sr.subordinate.id} className="hover:bg-slate-50">
+                            <td className="p-3">
+                              <div className="flex items-center space-x-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {sr.subordinate.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-900">{sr.subordinate.name}</p>
+                                  <span className="text-[10px] text-blue-600 font-mono">
+                                    NIK: {sr.subordinate.nik}
+                                  </span>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-bold text-slate-900">{sr.subordinate.name}</p>
-                                <span className="text-[10px] text-blue-600 font-mono">
-                                  NIK: {sr.subordinate.nik}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <p className="font-semibold text-slate-800">{sr.subordinate.position}</p>
-                            <span className="text-[10px] text-slate-500">
-                              {sr.subordinate.category} {sr.subordinate.equipmentType ? `(${sr.subordinate.equipmentType})` : ''}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            {sr.report ? (
-                              <div>
-                                <span className="font-black text-sm text-slate-900">
-                                  {sr.finalScore.toFixed(2)}
-                                </span>
-                                <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded ${badge.color}`}>
-                                  {badge.label}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[10px] italic">Belum Diinput</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedSubNik(sr.subordinate.nik);
-                              }}
-                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-pointer"
-                            >
-                              Detail Rapor
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                            <td className="p-3">
+                              <p className="font-semibold text-slate-800">{sr.subordinate.position}</p>
+                              <span className="text-[10px] text-slate-500">
+                                {sr.subordinate.category} {sr.subordinate.equipmentType ? `(${sr.subordinate.equipmentType})` : ''}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              {sr.report ? (
+                                <div>
+                                  <span className="font-black text-sm text-slate-900">
+                                    {sr.finalScore.toFixed(2)}
+                                  </span>
+                                  <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded ${badge.color}`}>
+                                    {badge.label}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[10px] italic">Belum Diinput</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => {
+                                  setSelectedSubNik(sr.subordinate.nik);
+                                }}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-pointer"
+                              >
+                                Detail Rapor
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -734,34 +902,84 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <p className="font-bold text-slate-800">
-                        Nilai Per Parameter (Skala 1-4):
-                      </p>
+                    {/* Breakdown by Parameters */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-slate-800 flex items-center space-x-1.5">
+                          <Layers className="w-4 h-4 text-amber-600" />
+                          <span>Evaluasi Parameter MER & Data Indikator Input:</span>
+                        </p>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          Skala Nilai 1 (Min) s.d. 4 (Maks)
+                        </span>
+                      </div>
+
                       {(activeSubDetail.subordinate.category === 'Operator'
                         ? operatorParameters
                         : nonomParameters
                       ).map((p) => {
                         const scoreVal = activeSubDetail.report?.scores[p.id] || 0;
+                        const indDetails = getParameterIndicatorDetails(p, activeSubDetail.report);
+                        const weightContribution = ((scoreVal * p.weight) / 100).toFixed(2);
+
                         return (
                           <div
                             key={p.id}
-                            className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between"
+                            className="bg-slate-50 hover:bg-slate-100/60 transition-colors p-3.5 rounded-xl border border-slate-200 space-y-2.5"
                           >
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {p.name}{' '}
-                                <span className="text-amber-700 text-[10px]">
-                                  ({p.weight}%)
-                                </span>
-                              </p>
-                              <p className="text-[10px] text-slate-500">
-                                {p.criteria[scoreVal as 1 | 2 | 3 | 4] || '-'}
-                              </p>
+                            {/* Header: Title, Weight & Score */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <p className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                                    {p.name}
+                                  </p>
+                                  <span className="text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded text-[10px] font-bold">
+                                    Bobot {p.weight}%
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  {p.description}
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="inline-flex items-center space-x-1 bg-white border border-amber-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                                  <span className="text-[10px] text-slate-500 font-semibold">Skor:</span>
+                                  <span className="font-black text-sm text-amber-700">{scoreVal}</span>
+                                  <span className="text-[10px] text-slate-400">/ 4</span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                  +{weightContribution} poin
+                                </div>
+                              </div>
                             </div>
-                            <span className="font-black text-lg text-amber-700 ml-2">
-                              {scoreVal}
-                            </span>
+
+                            {/* Indicator Data Badge & Details */}
+                            <div className="bg-white border border-slate-200/90 rounded-lg p-2.5 space-y-1.5 text-[11px]">
+                              {/* Indicator Value (Data yang diinput) */}
+                              <div className="flex items-start space-x-1.5">
+                                <span className="font-bold text-slate-700 shrink-0 flex items-center space-x-1">
+                                  <Database className="w-3 h-3 text-amber-600 inline" />
+                                  <span>Data Indikator Riil:</span>
+                                </span>
+                                <span className="font-extrabold text-amber-900 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded font-mono">
+                                  {indDetails.indicatorText}
+                                </span>
+                              </div>
+
+                              {/* Rubric Criteria for this Level */}
+                              <div className="flex items-start space-x-1.5">
+                                <span className="font-bold text-slate-600 shrink-0">Kriteria Level {scoreVal || '-'}:</span>
+                                <span className="text-slate-700 font-medium leading-relaxed">
+                                  {indDetails.criteriaText}
+                                </span>
+                              </div>
+
+                              {/* Data Source */}
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+                                <span>Sumber Data Operasional: <strong className="text-slate-600">{indDetails.sourceText}</strong></span>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

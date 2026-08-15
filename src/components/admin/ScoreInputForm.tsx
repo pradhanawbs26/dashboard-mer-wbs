@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MonthlyReport, RawMetricsData } from '../../types';
 import {
@@ -22,6 +22,15 @@ import {
   SlidersHorizontal,
   Database,
   RotateCcw,
+  Search,
+  ArrowUpDown,
+  ChevronDown,
+  Check,
+  User,
+  X,
+  Filter,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 
 export const ScoreInputForm: React.FC = () => {
@@ -39,11 +48,90 @@ export const ScoreInputForm: React.FC = () => {
 
   const subEmployees = employees.filter((e) => e.role === 'subordinate');
 
-  const [selectedNik, setSelectedNik] = useState<string>(
-    subEmployees[0]?.nik || ''
-  );
+  const [selectedNik, setSelectedNik] = useState<string>('');
 
-  const selectedEmp = subEmployees.find((e) => e.nik === selectedNik);
+  // Search, Sorting, and Filter states for Subordinate Selection
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'NAME_ASC' | 'NAME_DESC' | 'NIK_ASC' | 'NIK_DESC'>('NAME_ASC');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Operator' | 'Nonom'>('ALL');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isDropdownOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isDropdownOpen]);
+
+  // Filter & Sort Subordinates List
+  const filteredSubordinates = useMemo(() => {
+    let list = subEmployees.filter((emp) => {
+      // Category filter
+      if (categoryFilter !== 'ALL' && emp.category !== categoryFilter) {
+        return false;
+      }
+      // Search query (NIK, Name, Position, Department, Equipment, GL)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = emp.name.toLowerCase().includes(q);
+        const matchNik = emp.nik.toLowerCase().includes(q);
+        const matchDept = (emp.department || '').toLowerCase().includes(q);
+        const matchEquip = (emp.equipmentType || '').toLowerCase().includes(q);
+        const matchGL = (emp.groupLeaderName || '').toLowerCase().includes(q);
+        return matchName || matchNik || matchDept || matchEquip || matchGL;
+      }
+      return true;
+    });
+
+    // Sorting
+    list.sort((a, b) => {
+      if (sortBy === 'NAME_ASC') {
+        return a.name.localeCompare(b.name, 'id');
+      }
+      if (sortBy === 'NAME_DESC') {
+        return b.name.localeCompare(a.name, 'id');
+      }
+      if (sortBy === 'NIK_ASC') {
+        return a.nik.localeCompare(b.nik, undefined, { numeric: true });
+      }
+      if (sortBy === 'NIK_DESC') {
+        return b.nik.localeCompare(a.nik, undefined, { numeric: true });
+      }
+      return 0;
+    });
+
+    return list;
+  }, [subEmployees, searchQuery, sortBy, categoryFilter]);
+
+  const selectedEmp = selectedNik ? (subEmployees.find((e) => e.nik === selectedNik) || null) : null;
+
+  // Helper to check if an employee has report in selectedPeriod
+  const getEmployeePeriodStatus = (nik: string) => {
+    const rep = reports.find((r) => r.nik === nik && r.period === selectedPeriod);
+    if (rep) {
+      return {
+        evaluated: true,
+        score: rep.finalScore,
+        badge: getScoreCategoryBadge(rep.finalScore),
+      };
+    }
+    return { evaluated: false, score: null, badge: null };
+  };
 
   const isOperator = selectedEmp?.category === 'Operator';
   const parameters = isOperator ? operatorParameters : nonomParameters;
@@ -278,29 +366,287 @@ export const ScoreInputForm: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div>
-            <label className="block text-slate-600 font-semibold mb-1">
-              Pilih Karyawan Subordinat:
-            </label>
-            <select
-              value={selectedNik}
-              onChange={(e) => setSelectedNik(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 font-semibold focus:outline-none focus:border-blue-600 cursor-pointer"
+          {/* Searchable & Sortable Subordinate Selector */}
+          <div className="relative" ref={dropdownRef}>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-slate-700 font-bold">
+                Pilih Karyawan Subordinat:
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Cari NIK / Nama • Total {subEmployees.length} Subordinat
+              </span>
+            </div>
+
+            {/* Dropdown Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              className={`w-full bg-slate-50 hover:bg-slate-100/80 border transition-all text-left rounded-xl px-3.5 py-2.5 flex items-center justify-between shadow-2xs ${
+                isDropdownOpen ? 'border-blue-600 ring-2 ring-blue-100 bg-white' : 'border-slate-300'
+              }`}
             >
-              {subEmployees.map((emp) => (
-                <option key={emp.id} value={emp.nik}>
-                  {emp.name} (NIK: {emp.nik}) • {emp.category}
-                  {emp.equipmentType ? ` [${emp.equipmentType}]` : ''}
-                </option>
-              ))}
-            </select>
+              {selectedEmp ? (
+                <div className="flex items-center space-x-2.5 truncate">
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center shrink-0 text-xs">
+                    {selectedEmp.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="truncate">
+                    <div className="flex items-center space-x-1.5 truncate">
+                      <span className="font-extrabold text-slate-900 text-xs truncate">
+                        {selectedEmp.name}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-600 bg-slate-200/70 px-1.5 py-0.2 rounded font-bold shrink-0">
+                        NIK: {selectedEmp.nik}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                      {selectedEmp.category} {selectedEmp.equipmentType ? `• [${selectedEmp.equipmentType}]` : ''} • {selectedEmp.department}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2.5 truncate">
+                  <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-500 font-bold flex items-center justify-center shrink-0 text-xs">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div className="truncate">
+                    <span className="font-semibold text-slate-500 text-xs">
+                      -- Pilih Karyawan Subordinat (Cari NIK / Nama) --
+                    </span>
+                    <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                      Klik untuk mencari dari {subEmployees.length} karyawan subordinat
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-1 shrink-0 ml-2">
+                {selectedEmp && (
+                  <span
+                    role="button"
+                    title="Hapus / Reset Pilihan"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedNik('');
+                    }}
+                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors mr-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </span>
+                )}
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ${
+                    isDropdownOpen ? 'rotate-180 text-blue-600' : ''
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Dropdown Popover */}
+            {isDropdownOpen && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                {/* Search & Filter Header */}
+                <div className="p-3 bg-slate-50 border-b border-slate-200 space-y-2.5">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Ketik NIK (contoh: 2169...) atau Nama..."
+                      className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sorting and Category Filters */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                    {/* Sort Selector */}
+                    <div className="flex items-center space-x-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
+                      <ArrowUpDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Urutkan:</span>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer text-[11px]"
+                      >
+                        <option value="NAME_ASC">Abjad Nama (A - Z)</option>
+                        <option value="NAME_DESC">Abjad Nama (Z - A)</option>
+                        <option value="NIK_ASC">NIK (Terkecil - Terbesar)</option>
+                        <option value="NIK_DESC">NIK (Terbesar - Terkecil)</option>
+                      </select>
+                    </div>
+
+                    {/* Category Filter Pills */}
+                    <div className="flex items-center space-x-1 bg-slate-200/70 p-0.5 rounded-lg shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter('ALL')}
+                        className={`px-2 py-0.5 rounded-md font-semibold text-[10px] transition-all ${
+                          categoryFilter === 'ALL'
+                            ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Semua ({subEmployees.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter('Operator')}
+                        className={`px-2 py-0.5 rounded-md font-semibold text-[10px] transition-all ${
+                          categoryFilter === 'Operator'
+                            ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Operator
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter('Nonom')}
+                        className={`px-2 py-0.5 rounded-md font-semibold text-[10px] transition-all ${
+                          categoryFilter === 'Nonom'
+                            ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Nonom
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Results Count Helper */}
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium px-0.5">
+                    <span>
+                      Menampilkan <strong className="text-slate-800">{filteredSubordinates.length}</strong> karyawan
+                    </span>
+                    {searchQuery && (
+                      <span className="text-blue-600 font-semibold">
+                        Filter: &quot;{searchQuery}&quot;
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subordinates Scrollable List */}
+                <div className="max-h-64 sm:max-h-72 overflow-y-auto divide-y divide-slate-100">
+                  {filteredSubordinates.length > 0 ? (
+                    filteredSubordinates.map((emp) => {
+                      const isSelected = emp.nik === selectedNik;
+                      const periodStatus = getEmployeePeriodStatus(emp.nik);
+
+                      return (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedNik(emp.nik);
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full p-2.5 text-left flex items-center justify-between gap-3 transition-colors hover:bg-blue-50/60 ${
+                            isSelected ? 'bg-blue-50/90 font-bold border-l-4 border-blue-600' : 'bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5 truncate">
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <Check className="w-4 h-4" />
+                              ) : (
+                                emp.name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+
+                            <div className="truncate">
+                              <div className="flex items-center space-x-2 truncate">
+                                <span className="font-bold text-slate-900 text-xs truncate">
+                                  {emp.name}
+                                </span>
+                                <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded shrink-0">
+                                  {emp.nik}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded shrink-0 ${
+                                    emp.category === 'Operator'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-indigo-100 text-indigo-800'
+                                  }`}
+                                >
+                                  {emp.category}
+                                </span>
+                              </div>
+
+                              <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                {emp.position} • Area: {emp.department}
+                                {emp.equipmentType ? ` [${emp.equipmentType}]` : ''} • GL: {emp.groupLeaderName}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Evaluation status in current period */}
+                          <div className="shrink-0 text-right">
+                            {periodStatus.evaluated ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>{periodStatus.score?.toFixed(2)}</span>
+                                </span>
+                                <span className="text-[9px] text-emerald-700 font-semibold mt-0.5">
+                                  {periodStatus.badge?.label}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[9px] bg-slate-100 text-slate-500 font-medium px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                <Clock className="w-2.5 h-2.5 text-slate-400" />
+                                <span>Belum Dinilai</span>
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="p-6 text-center text-slate-500 space-y-2">
+                      <p className="text-xs">
+                        Tidak ada karyawan dengan kata kunci &quot;<strong className="text-slate-800">{searchQuery}</strong>&quot;
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setCategoryFilter('ALL');
+                        }}
+                        className="text-xs text-blue-600 font-bold hover:underline"
+                      >
+                        Reset Pencarian & Filter
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
             <label className="block text-slate-600 font-semibold mb-1">
               Periode Evaluasi MER:
             </label>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-blue-600 font-bold flex items-center space-x-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-blue-600 font-bold flex items-center space-x-2">
               <Calendar className="w-4 h-4 text-blue-600" />
               <span>{formatPeriodLabel(selectedPeriod)}</span>
             </div>
@@ -308,40 +654,55 @@ export const ScoreInputForm: React.FC = () => {
         </div>
 
         {selectedEmp && (
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
             <div>
-              <p className="font-bold text-slate-900">{selectedEmp.name}</p>
-              <p className="text-[10px] text-slate-500">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-slate-900 text-sm">{selectedEmp.name}</span>
+                <span className="font-mono text-slate-600 bg-slate-200/80 px-1.5 py-0.5 rounded font-bold text-[11px]">
+                  NIK: {selectedEmp.nik}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 {selectedEmp.position} • Area Kerja: {selectedEmp.department} • GL:{' '}
                 {selectedEmp.groupLeaderName}
               </p>
             </div>
-            <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md">
-              Kategori: {selectedEmp.category}
-            </span>
+            <div className="flex items-center space-x-2 shrink-0">
+              <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md">
+                Kategori: {selectedEmp.category}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedNik('')}
+                className="text-xs text-slate-500 hover:text-rose-600 font-semibold px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors"
+              >
+                Ganti Karyawan
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSaveReport} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Columns: Supporting Data Input & Auto Calculated Parameters */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* SECTION 1: RAW SUPPORTING DATA INPUT PANEL */}
-          <div className="bg-white border-2 border-blue-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center space-x-2 text-blue-700 font-extrabold text-sm">
-                <Database className="w-5 h-5 text-blue-600" />
-                <span>1. Input Data Pendukung Operasional ({isOperator ? 'Operator' : 'Nonom'})</span>
+      {selectedEmp ? (
+        <form onSubmit={handleSaveReport} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left 2 Columns: Supporting Data Input & Auto Calculated Parameters */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* SECTION 1: RAW SUPPORTING DATA INPUT PANEL */}
+            <div className="bg-white border-2 border-blue-200 rounded-xl p-5 text-slate-800 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2 text-blue-700 font-extrabold text-sm">
+                  <Database className="w-5 h-5 text-blue-600" />
+                  <span>1. Input Data Pendukung Operasional ({isOperator ? 'Operator' : 'Nonom'})</span>
+                </div>
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                  <Zap className="w-3 h-3" />
+                  <span>Sistem Auto-Scoring Aktif</span>
+                </span>
               </div>
-              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
-                <Zap className="w-3 h-3" />
-                <span>Sistem Auto-Scoring Aktif</span>
-              </span>
-            </div>
 
-            <p className="text-xs text-slate-500">
-              Masukkan indikator riil karyawan ({isOperator ? 'Operator Alat Berat' : 'Karyawan Non-Operator'}) untuk bulan ini. Sistem akan langsung membandingkan dengan kriteria threshold.
-            </p>
+              <p className="text-xs text-slate-500">
+                Masukkan indikator riil karyawan ({isOperator ? 'Operator Alat Berat' : 'Karyawan Non-Operator'}) untuk bulan ini. Sistem akan langsung membandingkan dengan kriteria threshold.
+              </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               {/* ATR Kehadiran % */}
@@ -795,7 +1156,7 @@ export const ScoreInputForm: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>Simpan MER ({selectedPeriod})</span>
@@ -803,6 +1164,31 @@ export const ScoreInputForm: React.FC = () => {
           </div>
         </div>
       </form>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-14 text-center space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+            <Search className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h4 className="font-extrabold text-slate-900 text-base sm:text-lg">
+              Silakan Pilih Karyawan Terlebih Dahulu
+            </h4>
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              Ketik NIK atau Nama karyawan pada menu pencarian di atas untuk mulai memasukkan data pendukung operasional dan melakukan penilaian MER periode <strong className="text-slate-800">{formatPeriodLabel(selectedPeriod)}</strong>.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(true)}
+              className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+            >
+              <Search className="w-4 h-4" />
+              <span>Buka Menu Pencarian Karyawan ({subEmployees.length} Subordinat)</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

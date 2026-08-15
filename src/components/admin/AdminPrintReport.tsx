@@ -164,11 +164,13 @@ export const AdminPrintReport: React.FC = () => {
                 onChange={(e) => setSelectedSubNik(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 cursor-pointer"
               >
-                {subordinates.map((sub) => (
-                  <option key={sub.id} value={sub.nik}>
-                    {sub.name} (NIK: {sub.nik}) - GL: {sub.groupLeaderName || 'Ahmad Hidayat'}
-                  </option>
-                ))}
+                {[...subordinates]
+                  .sort((a, b) => a.name.localeCompare(b.name, 'id'))
+                  .map((sub) => (
+                    <option key={sub.id} value={sub.nik}>
+                      {sub.name} (NIK: {sub.nik}) - GL: {sub.groupLeaderName || 'Ahmad Hidayat'}
+                    </option>
+                  ))}
               </select>
             ) : (
               <select
