@@ -713,7 +713,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
               </tbody>
             </table>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200 print:hidden">
               <button
                 onClick={() => window.print()}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center space-x-1 shadow-sm"
