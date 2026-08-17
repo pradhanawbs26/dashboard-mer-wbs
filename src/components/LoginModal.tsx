@@ -36,7 +36,7 @@ export const LoginModal: React.FC = () => {
         <div className="text-center space-y-3">
           <div className="w-20 h-20 rounded-2xl bg-white p-2.5 mx-auto flex items-center justify-center shadow-lg border border-slate-100 ring-4 ring-white/60">
             <img
-              src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png"
+              src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786941816/Logo_MER_02_wmtlnu.png"
               alt="Logo MER"
               className="w-full h-full object-contain"
               referrerPolicy="no-referrer"

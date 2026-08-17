@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../../context/AppContext';
 import { Employee, SubordinateCategory, UserRole, HeavyEquipmentType, WORK_AREAS } from '../../types';
 import { HEAVY_EQUIPMENT_LIST } from '../../data/initialData';
+import { PhotoViewerModal } from '../common/PhotoViewerModal';
+import { ImageCropModal } from '../common/ImageCropModal';
 import {
   Users,
   UserPlus,
@@ -26,6 +28,9 @@ import {
   X,
   Cloud,
   RefreshCw,
+  Camera,
+  Crop,
+  Maximize2,
 } from 'lucide-react';
 
 export const MasterData: React.FC = () => {
@@ -56,8 +61,14 @@ export const MasterData: React.FC = () => {
   // State to toggle password visibility in table per employee ID
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
 
-  // Modal Form Password visibility
+  // Subordinate & Employee Photo Viewer Popup state
+  const [photoViewingEmp, setPhotoViewingEmp] = useState<Employee | null>(null);
+
+  // Modal Form Password & Photo states
   const [showModalPassword, setShowModalPassword] = useState(false);
+  const [rawImageForCrop, setRawImageForCrop] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -70,6 +81,7 @@ export const MasterData: React.FC = () => {
     department: string;
     groupLeaderId?: string;
     position: string;
+    photoUrl?: string;
   }>({
     nik: '',
     name: '',
@@ -80,6 +92,7 @@ export const MasterData: React.FC = () => {
     department: 'CY',
     groupLeaderId: '',
     position: '',
+    photoUrl: undefined,
   });
 
   const togglePasswordVisibility = (empId: string) => {
@@ -351,6 +364,37 @@ export const MasterData: React.FC = () => {
     });
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('File harus berupa gambar (JPG, PNG, WEBP).');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Ukuran file maksimal 8MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      setRawImageForCrop(result);
+      setShowCropModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = (croppedBase64: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      photoUrl: croppedBase64,
+    }));
+  };
+
   const openAddModal = () => {
     setEditingEmp(null);
     setFormData({
@@ -363,6 +407,7 @@ export const MasterData: React.FC = () => {
       department: 'CY',
       groupLeaderId: groupLeaders[0]?.nik || '',
       position: 'Operator Heavy Machinery',
+      photoUrl: undefined,
     });
     setShowModalPassword(false);
     setShowModal(true);
@@ -380,6 +425,7 @@ export const MasterData: React.FC = () => {
       department: emp.department,
       groupLeaderId: emp.groupLeaderId || '',
       position: emp.position,
+      photoUrl: emp.photoUrl,
     });
     setShowModalPassword(false);
     setShowModal(true);
@@ -607,17 +653,25 @@ export const MasterData: React.FC = () => {
                   <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3.5">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setPhotoViewingEmp(emp)}
+                          className="relative group/avatar w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
+                          title="Klik untuk melihat foto profil besar"
+                        >
                           {emp.photoUrl ? (
                             <img
                               src={emp.photoUrl}
                               alt={emp.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
                             />
                           ) : (
                             emp.name.charAt(0)
                           )}
-                        </div>
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <Maximize2 className="w-3 h-3" />
+                          </div>
+                        </button>
                         <div>
                           <p className="font-bold text-slate-900 text-sm">{emp.name}</p>
                           <span className="text-[10px] text-blue-600 font-mono">
@@ -735,6 +789,68 @@ export const MasterData: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-3 text-xs">
+              {/* Profile Photo Upload & Preview */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-sm bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    {formData.photoUrl ? (
+                      <img
+                        src={formData.photoUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{formData.name ? formData.name.charAt(0).toUpperCase() : '?'}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-xs">Foto Profil Karyawan</p>
+                    <p className="text-[10px] text-slate-500">JPG, PNG, WEBP (Mendukung Crop)</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-1.5 rounded-lg border border-blue-200 flex items-center space-x-1 transition-all cursor-pointer text-[11px]"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{formData.photoUrl ? 'Ganti' : 'Pilih Foto'}</span>
+                  </button>
+                  {formData.photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRawImageForCrop(formData.photoUrl || null);
+                        setShowCropModal(true);
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold p-1.5 rounded-lg border border-slate-300 transition-all cursor-pointer"
+                      title="Sesuaikan Posisi Foto (Crop)"
+                    >
+                      <Crop className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {formData.photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, photoUrl: undefined }))}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold p-1.5 rounded-lg border border-rose-200 transition-all cursor-pointer"
+                      title="Hapus Foto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">
                   NIK (Nomor Induk Karyawan):
@@ -1274,6 +1390,20 @@ export const MasterData: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Subordinate & Employee Profile Photo Viewer Modal */}
+      <PhotoViewerModal
+        employee={photoViewingEmp}
+        onClose={() => setPhotoViewingEmp(null)}
+      />
+
+      {/* Admin Photo Crop Modal */}
+      <ImageCropModal
+        imageSrc={rawImageForCrop}
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };

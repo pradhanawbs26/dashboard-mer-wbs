@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { Employee } from '../../types';
 import { UserSettingsModal } from '../common/UserSettingsModal';
 import { YtdParameterTable } from '../common/YtdParameterTable';
+import { PhotoViewerModal } from '../common/PhotoViewerModal';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
@@ -29,6 +31,7 @@ import {
   Check,
   Database,
   Calendar,
+  Maximize2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -70,6 +73,7 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
   // Subordinate detail modal states
   const [selectedSubNik, setSelectedSubNik] = useState<string | null>(null);
   const [subModalTab, setSubModalTab] = useState<'period' | 'ytd'>('ytd');
+  const [photoViewingEmp, setPhotoViewingEmp] = useState<Employee | null>(null);
 
   // Close YTD dropdown on click outside
   useEffect(() => {
@@ -610,9 +614,25 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                       className="bg-slate-50 border border-slate-200 hover:border-amber-400 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:bg-slate-100/70"
                     >
                       <div className="flex items-center space-x-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200">
-                          #{index + 1}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPhotoViewingEmp(glItem.groupLeader)}
+                          className="relative group/avatar w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200 overflow-hidden shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                          title="Klik untuk melihat foto profil Group Leader"
+                        >
+                          {glItem.groupLeader.photoUrl ? (
+                            <img
+                              src={glItem.groupLeader.photoUrl}
+                              alt={glItem.groupLeader.name}
+                              className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                            />
+                          ) : (
+                            <span>#{index + 1}</span>
+                          )}
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <Maximize2 className="w-3 h-3" />
+                          </div>
+                        </button>
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="font-extrabold text-slate-900 text-sm">
@@ -762,9 +782,25 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                           <tr key={sr.subordinate.id} className="hover:bg-slate-50">
                             <td className="p-3">
                               <div className="flex items-center space-x-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                                  {sr.subordinate.name.charAt(0)}
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoViewingEmp(sr.subordinate)}
+                                  className="relative group/avatar w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
+                                  title="Klik untuk melihat foto profil besar"
+                                >
+                                  {sr.subordinate.photoUrl ? (
+                                    <img
+                                      src={sr.subordinate.photoUrl}
+                                      alt={sr.subordinate.name}
+                                      className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                                    />
+                                  ) : (
+                                    sr.subordinate.name.charAt(0)
+                                  )}
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Maximize2 className="w-3 h-3" />
+                                  </div>
+                                </button>
                                 <div>
                                   <p className="font-bold text-slate-900">{sr.subordinate.name}</p>
                                   <span className="text-[10px] text-blue-600 font-mono">
@@ -828,13 +864,35 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full p-5 sm:p-6 text-slate-800 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-amber-700">
-                  Rincian Evaluasi & Rapor MER Subordinat
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  <strong className="text-slate-800">{activeSubDetail.subordinate.name}</strong> (NIK: {activeSubDetail.subordinate.nik}) • Area Kerja: {activeSubDetail.subordinate.department}
-                </p>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setPhotoViewingEmp(activeSubDetail.subordinate)}
+                  className="relative group/avatar w-11 h-11 rounded-full bg-amber-600 text-white font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                  title="Klik untuk melihat foto profil besar"
+                >
+                  {activeSubDetail.subordinate.photoUrl ? (
+                    <img
+                      src={activeSubDetail.subordinate.photoUrl}
+                      alt={activeSubDetail.subordinate.name}
+                      className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                    />
+                  ) : (
+                    activeSubDetail.subordinate.name.charAt(0)
+                  )}
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <Maximize2 className="w-4 h-4" />
+                  </div>
+                </button>
+
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-amber-700">
+                    Rincian Evaluasi & Rapor MER Subordinat
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    <strong className="text-slate-800">{activeSubDetail.subordinate.name}</strong> (NIK: {activeSubDetail.subordinate.nik}) • Area Kerja: {activeSubDetail.subordinate.department}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedSubNik(null)}
@@ -1004,6 +1062,12 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
           </div>
         </div>
       )}
+
+      {/* Profile Photo Viewer Popup */}
+      <PhotoViewerModal
+        employee={photoViewingEmp}
+        onClose={() => setPhotoViewingEmp(null)}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Camera, Upload, Trash2, X, CheckCircle, Image as ImageIcon, User } from 'lucide-react';
+import { ImageCropModal } from './ImageCropModal';
+import { Camera, Upload, Trash2, X, CheckCircle, Image as ImageIcon, User, Crop } from 'lucide-react';
 
 interface ProfilePhotoModalProps {
   isOpen: boolean;
@@ -13,7 +14,8 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentUser?.photoUrl || null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [rawImageForCrop, setRawImageForCrop] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
 
   if (!isOpen || !currentUser) return null;
 
@@ -29,51 +31,23 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
       return;
     }
 
-    // Limit size to 5MB before canvas compression
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Ukuran file maksimal 5MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Ukuran file maksimal 8MB.');
       return;
     }
 
-    setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        // Resize image to max 400x400 for fast storage performance
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400;
-        const MAX_HEIGHT = 400;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-          setPreviewUrl(compressedBase64);
-        } else {
-          setPreviewUrl(event.target?.result as string);
-        }
-        setIsProcessing(false);
-      };
-      img.src = event.target?.result as string;
+      const result = event.target?.result as string;
+      setRawImageForCrop(result);
+      setShowCropModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = (croppedBase64: string) => {
+    setPreviewUrl(croppedBase64);
   };
 
   const handleSave = () => {
@@ -95,6 +69,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
 
   const handleRemovePhoto = () => {
     setPreviewUrl(null);
+    setRawImageForCrop(null);
   };
 
   return (
@@ -118,7 +93,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -166,7 +141,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
               </div>
 
               <p className="text-[11px] text-slate-500 text-center">
-                Format yang didukung: JPG, PNG, WEBP (Otomatis dikompresi)
+                Format yang didukung: JPG, PNG, WEBP (Dapat di-crop dan diposisikan)
               </p>
             </div>
 
@@ -183,7 +158,6 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessing}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5 text-blue-600" />
@@ -193,11 +167,14 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
               {previewUrl ? (
                 <button
                   type="button"
-                  onClick={handleRemovePhoto}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                  onClick={() => {
+                    setRawImageForCrop(previewUrl);
+                    setShowCropModal(true);
+                  }}
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Hapus Foto</span>
+                  <Crop className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Sesuaikan (Crop)</span>
                 </button>
               ) : (
                 <button
@@ -211,12 +188,22 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
               )}
             </div>
 
+            {previewUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs py-2 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Hapus Foto Profil</span>
+              </button>
+            )}
+
             <div className="pt-2">
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs py-3 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4" />
                 <span>Simpan Foto Profil</span>
@@ -225,6 +212,14 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
           </div>
         )}
       </div>
+
+      {/* Image Cropper Modal */}
+      <ImageCropModal
+        imageSrc={rawImageForCrop}
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };

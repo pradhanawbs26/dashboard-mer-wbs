@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { UserSettingsModal } from '../common/UserSettingsModal';
 import { ProfileMenuDropdown } from '../common/ProfileMenuDropdown';
 import { YtdParameterTable } from '../common/YtdParameterTable';
+import { PhotoViewerModal } from '../common/PhotoViewerModal';
 import {
   getScoreCategoryBadge,
   getScoreFontColor,
@@ -26,6 +27,7 @@ import {
   Building,
   Settings,
   UserCheck,
+  Maximize2,
 } from 'lucide-react';
 import {
   LineChart,
@@ -56,6 +58,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'photo' | 'password'>('photo');
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
 
   if (!currentUser) return null;
 
@@ -111,17 +114,25 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 min-w-0">
             {/* Avatar / Profile Photo */}
-            <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-tr from-[#b42907] via-[#d4380d] to-[#ff5e3a] flex items-center justify-center text-white font-black text-2xl shadow-md shrink-0 overflow-hidden border-2 border-white ring-4 ring-[#b42907]/10">
+            <button
+              type="button"
+              onClick={() => setShowPhotoViewer(true)}
+              className="relative group/avatar w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-tr from-[#b42907] via-[#d4380d] to-[#ff5e3a] flex items-center justify-center text-white font-black text-2xl shadow-md shrink-0 overflow-hidden border-2 border-white ring-4 ring-[#b42907]/10 hover:ring-[#b42907]/30 transition-all cursor-pointer"
+              title="Klik untuk melihat foto profil besar"
+            >
               {currentUser.photoUrl ? (
                 <img
                   src={currentUser.photoUrl}
                   alt={currentUser.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover/avatar:scale-105 transition-transform"
                 />
               ) : (
                 currentUser.name.charAt(0)
               )}
-            </div>
+              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                <Maximize2 className="w-5 h-5" />
+              </div>
+            </button>
 
             {/* Symmetrical Profile Details Grid */}
             <div className="flex-1 min-w-0 space-y-2">
@@ -628,7 +639,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-sm border border-slate-100">
                   <img
-                    src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png"
+                    src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786941816/Logo_MER_02_wmtlnu.png"
                     alt="Logo MER"
                     className="w-full h-full object-contain"
                     referrerPolicy="no-referrer"
@@ -867,6 +878,12 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
           </div>
         </div>
       )}
+
+      {/* Subordinate Profile Photo Viewer Modal */}
+      <PhotoViewerModal
+        employee={showPhotoViewer ? currentUser : null}
+        onClose={() => setShowPhotoViewer(false)}
+      />
     </div>
   );
 };

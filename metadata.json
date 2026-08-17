@@ -1,6 +1,6 @@
 {
-  "name": "MER Online",
-  "description": "PT. Wahana Bara Sentosa",
+  "name": "MER Online - PT. WBS",
+  "description": "Aplikasi Penilaian Kinerja Karyawan (Monthly Employee Report) PT. Wahana Bara Sentosa",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

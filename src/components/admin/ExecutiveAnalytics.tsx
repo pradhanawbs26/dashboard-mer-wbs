@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { Employee } from '../../types';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
 } from '../../utils/calculations';
 import { YtdParameterTable } from '../common/YtdParameterTable';
+import { PhotoViewerModal } from '../common/PhotoViewerModal';
 import {
   Award,
   TrendingUp,
@@ -20,6 +22,7 @@ import {
   UserCheck,
   FileSpreadsheet,
   CalendarRange,
+  Maximize2,
 } from 'lucide-react';
 import {
   PieChart,
@@ -46,6 +49,7 @@ export const ExecutiveAnalytics: React.FC = () => {
   const [customYear, setCustomYear] = useState<string>('2026');
   const [selectedYtdSubNik, setSelectedYtdSubNik] = useState<string>('');
   const [tableGlFilter, setTableGlFilter] = useState<string>('ALL');
+  const [photoViewingEmp, setPhotoViewingEmp] = useState<Employee | null>(null);
 
   const months = [
     { code: '01', name: 'Jan', fullName: 'Januari' },
@@ -585,7 +589,7 @@ export const ExecutiveAnalytics: React.FC = () => {
               return (
                 <div
                   key={item.employee.id}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs hover:border-emerald-200 transition-colors"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span
@@ -601,6 +605,28 @@ export const ExecutiveAnalytics: React.FC = () => {
                     >
                       #{idx + 1}
                     </span>
+
+                    {/* Employee Profile Photo Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setPhotoViewingEmp(item.employee)}
+                      className="relative group/avatar w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-emerald-500 transition-all cursor-pointer"
+                      title="Klik untuk melihat foto profil besar"
+                    >
+                      {item.employee.photoUrl ? (
+                        <img
+                          src={item.employee.photoUrl}
+                          alt={item.employee.name}
+                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                        />
+                      ) : (
+                        item.employee.name.charAt(0)
+                      )}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Maximize2 className="w-3 h-3" />
+                      </div>
+                    </button>
+
                     <div className="min-w-0">
                       <p className="font-bold text-slate-900 truncate">
                         {item.employee.name}
@@ -655,12 +681,34 @@ export const ExecutiveAnalytics: React.FC = () => {
               return (
                 <div
                   key={item.employee.id}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs hover:border-rose-200 transition-colors"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span className="w-6 h-6 rounded-md bg-rose-100 text-rose-700 font-black text-xs flex items-center justify-center shrink-0">
                       #{idx + 1}
                     </span>
+
+                    {/* Employee Profile Photo Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setPhotoViewingEmp(item.employee)}
+                      className="relative group/avatar w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-rose-500 transition-all cursor-pointer"
+                      title="Klik untuk melihat foto profil besar"
+                    >
+                      {item.employee.photoUrl ? (
+                        <img
+                          src={item.employee.photoUrl}
+                          alt={item.employee.name}
+                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                        />
+                      ) : (
+                        item.employee.name.charAt(0)
+                      )}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Maximize2 className="w-3 h-3" />
+                      </div>
+                    </button>
+
                     <div className="min-w-0">
                       <p className="font-bold text-slate-900 truncate">
                         {item.employee.name}
@@ -820,21 +868,48 @@ export const ExecutiveAnalytics: React.FC = () => {
                         {idx + 1}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-extrabold text-slate-900 leading-tight">
-                          {sub.name}
-                        </div>
-                        <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mt-0.5">
-                          <span className="font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded font-bold">
-                            {sub.nik}
-                          </span>
-                          <span>•</span>
-                          <span>{sub.category}</span>
-                          {sub.equipmentType && (
-                            <>
+                        <div className="flex items-center space-x-2.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPhotoViewingEmp(sub);
+                            }}
+                            className="relative group/avatar w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
+                            title="Klik untuk melihat foto profil besar"
+                          >
+                            {sub.photoUrl ? (
+                              <img
+                                src={sub.photoUrl}
+                                alt={sub.name}
+                                className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                              />
+                            ) : (
+                              sub.name.charAt(0)
+                            )}
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="w-2.5 h-2.5" />
+                            </div>
+                          </button>
+
+                          <div>
+                            <div className="font-extrabold text-slate-900 leading-tight">
+                              {sub.name}
+                            </div>
+                            <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mt-0.5">
+                              <span className="font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded font-bold">
+                                {sub.nik}
+                              </span>
                               <span>•</span>
-                              <span className="text-blue-600 font-medium">{sub.equipmentType}</span>
-                            </>
-                          )}
+                              <span>{sub.category}</span>
+                              {sub.equipmentType && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-blue-600 font-medium">{sub.equipmentType}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-3 px-3 font-semibold text-slate-700 text-[11px]">
@@ -936,6 +1011,12 @@ export const ExecutiveAnalytics: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Profile Photo Viewer Popup */}
+      <PhotoViewerModal
+        employee={photoViewingEmp}
+        onClose={() => setPhotoViewingEmp(null)}
+      />
     </div>
   );
 };
