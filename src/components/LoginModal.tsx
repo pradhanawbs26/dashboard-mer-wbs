@@ -43,16 +43,13 @@ export const LoginModal: React.FC = () => {
             />
           </div>
           <div>
-            <div className="flex items-center justify-center space-x-2">
+            <div className="flex items-center justify-center">
               <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Horizon
+                MER ONLINE
               </h1>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-[#b42907] bg-[#b42907]/10 px-2 py-0.5 rounded-full">
-                MER Online
-              </span>
             </div>
-            <p className="text-xs text-slate-500 font-semibold mt-1">
-              PT. Wahana Bara Sentosa
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+              PT. WAHANA BARA SENTOSA
             </p>
           </div>
         </div>
@@ -74,12 +71,15 @@ export const LoginModal: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Masukkan NIK atau Username"
+                placeholder="masukkan NIK seperti 2222000"
                 value={inputIdentifier}
                 onChange={(e) => setInputIdentifier(e.target.value)}
                 className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#b42907]/30 focus:border-[#b42907] font-mono text-xs font-medium"
               />
             </div>
+            <p className="text-[10px] text-slate-400 mt-1 font-medium">
+              masukkan NIK seperti 2222000
+            </p>
           </div>
 
           <div>
@@ -111,7 +111,7 @@ export const LoginModal: React.FC = () => {
         <div className="text-center pt-2 border-t border-slate-200/60">
           <span className="text-[11px] text-slate-400 flex items-center justify-center space-x-1">
             <ShieldCheck className="w-3.5 h-3.5 text-[#00668a]" />
-            <span>Monthly Employee Review System</span>
+            <span>Monthly Employee Report</span>
           </span>
         </div>
       </div>
