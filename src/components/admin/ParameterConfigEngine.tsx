@@ -181,10 +181,10 @@ export const ParameterConfigEngine: React.FC = () => {
         <div>
           <h3 className="font-extrabold text-lg text-slate-900 flex items-center space-x-2">
             <Sliders className="w-5 h-5 text-blue-600" />
-            <span>Dynamic Customization Engine (Konfigurasi Parameter)</span>
+            <span>Kustomisasi Parameter</span>
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Ubah persentase bobot, kriteria nilai 1-4, serta nilai Merit & Demerit secara dinamis tanpa hardcode.
+            Mengubah nilai dan ketentuan dari seluruh parameter MER
           </p>
         </div>
 

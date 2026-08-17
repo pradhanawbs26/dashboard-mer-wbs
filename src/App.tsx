@@ -45,12 +45,12 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white print:min-h-0 print:bg-white print:p-0">
-      {/* Top Header */}
+    <div className="mesh-bg min-h-screen text-slate-800 flex flex-col font-sans selection:bg-[#b42907] selection:text-white print:min-h-0 print:bg-white print:p-0">
+      {/* Floating Top Header */}
       <Header />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 print:p-0 print:m-0 print:max-w-none print:w-full print:pb-0">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-28 print:p-0 print:m-0 print:max-w-none print:w-full print:pb-0">
         {currentUser.role === 'subordinate' && (
           <SubordinateView activeTab={activeTab} />
         )}
@@ -68,7 +68,7 @@ const MainLayout: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile-First Bottom Navigation Bar */}
+      {/* Floating Bottom Navigation Bar */}
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

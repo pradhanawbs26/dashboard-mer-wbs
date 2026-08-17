@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   getScoreCategoryBadge,
+  getScoreFontColor,
   formatPeriodLabel,
 } from '../../utils/calculations';
 import {
@@ -82,11 +83,11 @@ export const AdminPrintReport: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Printer className="w-5 h-5 text-blue-600 shrink-0" />
               <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
-                Pencetakan Rapor MER (Sistem Admin)
+                Pencetakan Rapor MER
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Cetak dokumen resmi Monthly Employee Report secara individu per Subordinat atau kolektif per Group Leader (1 Rapor = 1 Halaman A4)
+              Mencetak Rapor MER secara individu maupun tim Group Leader
             </p>
           </div>
 
@@ -96,7 +97,7 @@ export const AdminPrintReport: React.FC = () => {
             className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
           >
             <Printer className="w-4 h-4" />
-            <span>Cetak / Download PDF ({evaluatedEmployees.length} Dokumen Siap)</span>
+            <span>Cetak / Download PDF</span>
           </button>
         </div>
 
@@ -264,21 +265,22 @@ export const AdminPrintReport: React.FC = () => {
           const isOperator = emp.category === 'Operator';
           const parameters = isOperator ? operatorParameters : nonomParameters;
           const badge = getScoreCategoryBadge(rep.finalScore);
+          const scoreFont = getScoreFontColor(rep.finalScore);
           const isLastItem = index === evaluatedEmployees.length - 1;
 
           return (
             <div
               key={emp.id}
-              className={`printable-mer-card mer-print-page bg-white text-slate-900 border border-slate-300 rounded-xl p-6 sm:p-7 shadow-md max-w-3xl mx-auto flex flex-col justify-between print:shadow-none print:border-[1.5px] print:border-slate-900 print:p-5 print:m-0 print:rounded-none print:w-full print:max-w-none print:break-inside-avoid ${
+              className={`printable-mer-card mer-print-page glass-panel bg-white/80 backdrop-blur-2xl text-slate-900 border border-white/80 rounded-3xl p-6 sm:p-8 shadow-xl max-w-4xl mx-auto flex flex-col justify-between print:shadow-none print:border-[1.5px] print:border-slate-900 print:p-5 print:m-0 print:rounded-none print:w-full print:max-w-none print:bg-white print:break-inside-avoid ${
                 isLastItem ? 'print:break-after-auto' : 'print:break-after-page'
               }`}
             >
               {/* Top Section */}
-              <div className="space-y-4 print:space-y-3">
-                {/* Header Company & Logo */}
-                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 print:pb-2.5">
+              <div className="space-y-5 print:space-y-3">
+                {/* Header Title */}
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b-2 border-slate-900/10 pb-4 print:border-slate-900 print:pb-2.5">
                   <div className="flex items-center space-x-3">
-                    <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 print:border-slate-300">
+                    <div className="w-12 h-12 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-sm border border-slate-100 print:border-slate-300">
                       <img
                         src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png"
                         alt="Logo MER"
@@ -287,144 +289,219 @@ export const AdminPrintReport: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 uppercase">
+                      <h1 className="font-headline-lg text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight uppercase leading-tight">
                         MONTHLY EMPLOYEE REPORT (MER)
-                      </h2>
-                      <p className="text-[11px] text-slate-600 font-bold tracking-wide">
+                      </h1>
+                      <p className="font-body-lg text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
                         PT. WAHANA BARA SENTOSA
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[11px] font-extrabold uppercase text-blue-900 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 print:bg-slate-100 print:border-slate-400 print:text-slate-900">
-                      PERIODE: {formatPeriodLabel(printPeriod)}
+                  <div className="glass-panel px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-white/80 bg-white/70 shadow-2xs print:bg-slate-100 print:border-slate-300">
+                    <span className="font-label-caps text-xs font-black uppercase text-[#b42907] tracking-widest font-mono">
+                      PERIODE: {formatPeriodLabel(printPeriod).toUpperCase()}
                     </span>
                   </div>
-                </div>
+                </header>
 
-                {/* Employee Information Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 print:bg-slate-50 print:border-slate-300 print:p-2.5 print:text-[11px]">
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Nama Karyawan:</p>
-                    <p className="font-extrabold text-slate-900 truncate">{emp.name}</p>
+                {/* Employee Profile Details */}
+                <section className="glass-panel p-4 sm:p-5 rounded-2xl bg-white/60 border border-white/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 shadow-2xs print:p-2.5 print:rounded-none print:border-slate-300 print:bg-slate-50">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      NAMA KARYAWAN:
+                    </span>
+                    <span className="font-headline-md text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+                      {emp.name}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">NIK Karyawan:</p>
-                    <p className="font-mono font-bold text-slate-900">{emp.nik}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      NIK KARYAWAN:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-bold font-mono">
+                      {emp.nik}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Jabatan / Posisi:</p>
-                    <p className="font-bold text-slate-900 truncate">{emp.position}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      JABATAN / POSISI:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
+                      {emp.position}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Area Kerja / Dept:</p>
-                    <p className="font-bold text-slate-900 truncate">{emp.department}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      AREA KERJA / DEPT:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
+                      {emp.department}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Kategori / Alat:</p>
-                    <p className="font-bold text-slate-900 truncate">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      KATEGORI / ALAT:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
                       {emp.category} {emp.equipmentType ? `(${emp.equipmentType})` : ''}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Group Leader:</p>
-                    <p className="font-bold text-slate-900 truncate">{emp.groupLeaderName || activeGL?.name || 'Ahmad Hidayat'}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Head Coach:</p>
-                    <p className="font-bold text-slate-900 truncate">{headCoachName}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 font-bold uppercase text-[9px]">Status Dokumen:</p>
-                    <p className="font-bold text-emerald-700 print:text-slate-900">RESMI / VALID</p>
-                  </div>
-                </div>
-
-                {/* Score Summary Box */}
-                <div className="bg-slate-900 text-white p-3.5 rounded-lg flex items-center justify-between shadow-inner print:bg-slate-900 print:text-white print:p-3">
-                  <div>
-                    <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                      Nilai Akhir MER:
-                    </p>
-                    <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-0.5">
-                      {rep.finalScore.toFixed(2)}{' '}
-                      <span className="text-xs text-slate-300 font-normal">/ 4.00</span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[11px] font-black bg-amber-400 text-slate-950 px-3 py-0.5 rounded-full uppercase tracking-wide inline-block">
-                      {badge.label}
                     </span>
-                    <p className="text-[10px] text-slate-300 mt-1 font-mono">
-                      Base: {rep.baseScore.toFixed(2)} | Merit: +{rep.meritPoint.toFixed(2)} | Demerit: -{rep.demeritPoint.toFixed(2)}
-                    </p>
                   </div>
-                </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      GROUP LEADER:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
+                      {emp.groupLeaderName || activeGL?.name || 'Ahmad Hidayat'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+                    <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      HEAD COACH:
+                    </span>
+                    <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
+                      {headCoachName}
+                    </span>
+                  </div>
+                </section>
 
-                {/* Parameter Table */}
-                <div className="overflow-hidden rounded-lg border border-slate-300 print:border-slate-400">
-                  <table className="w-full text-xs text-left border-collapse print:text-[11px]">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold print:bg-slate-200">
-                        <th className="py-2 px-2.5">Parameter Performance</th>
-                        <th className="py-2 px-2 text-center w-14">Bobot</th>
-                        <th className="py-2 px-2 text-center w-16">Nilai (1-4)</th>
-                        <th className="py-2 px-2.5">Kriteria Terpenuhi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 print:divide-slate-300">
-                      {parameters.map((p) => {
-                        const val = rep.scores[p.id] || 0;
-                        return (
-                          <tr key={p.id} className="hover:bg-slate-50">
-                            <td className="py-1.5 px-2.5 font-bold text-slate-800">{p.name}</td>
-                            <td className="py-1.5 px-2 text-center font-semibold text-slate-600">{p.weight}%</td>
-                            <td className="py-1.5 px-2 text-center font-black text-blue-700 print:text-slate-900">
-                              {val}
-                            </td>
-                            <td className="py-1.5 px-2.5 text-slate-600 font-medium text-[11px] leading-tight">
-                              {p.criteria[val as 1 | 2 | 3 | 4] || '-'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                {/* Performance Summary Card */}
+                <section className="glass-panel-navy p-4 sm:p-5 rounded-2xl text-white relative overflow-hidden shadow-lg border border-blue-500/40 print:bg-[#0c2340] print:p-3 print:rounded-none">
+                  <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+                    <div>
+                      <h2 className="font-label-caps text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-blue-200 mb-0.5">
+                        NILAI AKHIR MER:
+                      </h2>
+                      <div className="flex items-baseline gap-2">
+                        <span className={`font-display-xl text-3xl sm:text-4xl font-black ${scoreFont.tailwindClass} drop-shadow-md`}>
+                          {rep.finalScore.toFixed(2)}
+                        </span>
+                        <span className="font-headline-md text-sm sm:text-base font-bold text-blue-200/70">
+                          / 4.00
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-start sm:items-end gap-2">
+                      <div className={`px-4 py-1 rounded-full shadow-md ${badge.pillSolidClass}`}>
+                        <span className="font-label-caps text-xs font-black tracking-widest uppercase">
+                          {badge.label}
+                        </span>
+                      </div>
+                      <div className="font-status-mono text-[11px] text-blue-100 flex flex-wrap gap-2 opacity-95">
+                        <span>Base: <span className="text-white font-bold">{rep.baseScore.toFixed(2)}</span></span>
+                        <span className="text-blue-400/40">|</span>
+                        <span>Merit: <span className="text-emerald-400 font-bold">+{rep.meritPoint.toFixed(2)}</span></span>
+                        <span className="text-blue-400/40">|</span>
+                        <span>Demerit: <span className="text-rose-400 font-bold">-{rep.demeritPoint.toFixed(2)}</span></span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Performance Table */}
+                <section className="glass-panel rounded-2xl overflow-hidden border border-white/80 shadow-2xs print:rounded-none print:border-slate-300">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left glass-table text-xs">
+                      <thead>
+                        <tr className="bg-white/70 backdrop-blur-md border-b border-slate-200/60 print:bg-slate-200 print:border-slate-300">
+                          <th className="p-3 font-semibold text-slate-900">Parameter Performance</th>
+                          <th className="p-3 font-semibold text-slate-900 text-center w-16">Bobot</th>
+                          <th className="p-3 font-semibold text-slate-900 text-center w-20">Nilai (1-4)</th>
+                          <th className="p-3 font-semibold text-slate-900">Kriteria Terpenuhi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200/40 print:divide-slate-300 text-xs">
+                        {parameters.map((p, pIdx) => {
+                          const val = rep.scores[p.id] || 0;
+                          const scoreColor =
+                            val === 1
+                              ? 'text-[#b42907]'
+                              : val === 2 || val === 3
+                              ? 'text-[#00668a]'
+                              : 'text-[#7b41b4]';
+                          return (
+                            <tr
+                              key={p.id}
+                              className={`hover:bg-white/40 transition-colors ${
+                                pIdx % 2 === 1 ? 'bg-white/20 print:bg-slate-50' : ''
+                              }`}
+                            >
+                              <td className="p-2.5 sm:p-3 font-semibold text-slate-900">{p.name}</td>
+                              <td className="p-2.5 sm:p-3 text-center text-slate-600 font-medium">
+                                {p.weight}%
+                              </td>
+                              <td className={`p-2.5 sm:p-3 text-center font-bold text-sm ${scoreColor} print:text-slate-900 font-mono`}>
+                                {val}
+                              </td>
+                              <td className="p-2.5 sm:p-3 text-slate-600 text-[11px] sm:text-xs leading-relaxed">
+                                {p.criteria[val as 1 | 2 | 3 | 4] || '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
 
                 {/* Merit / Demerit Notes (If any) */}
                 {(rep.meritNotes || rep.demeritNotes) && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-[10px] text-slate-600 space-y-0.5 print:bg-white print:border-slate-300">
+                  <div className="glass-panel p-3 rounded-xl border border-white/80 text-[11px] text-slate-700 space-y-1 print:bg-white print:border-slate-300 print:rounded-none">
                     {rep.meritNotes && (
-                      <p><strong className="text-emerald-700">Catatan Merit (+{rep.meritPoint}):</strong> {rep.meritNotes}</p>
+                      <p>
+                        <strong className="text-emerald-700">Catatan Merit (+{rep.meritPoint}):</strong>{' '}
+                        {rep.meritNotes}
+                      </p>
                     )}
                     {rep.demeritNotes && (
-                      <p><strong className="text-red-700">Catatan Demerit (-{rep.demeritPoint}):</strong> {rep.demeritNotes}</p>
+                      <p>
+                        <strong className="text-rose-700">Catatan Demerit (-{rep.demeritPoint}):</strong>{' '}
+                        {rep.demeritNotes}
+                      </p>
                     )}
                   </div>
                 )}
               </div>
 
               {/* Bottom Signatures Section */}
-              <div className="pt-4 grid grid-cols-2 gap-8 text-center text-xs border-t-2 border-slate-300 print:border-slate-800 print:pt-3">
-                <div>
-                  <p className="text-slate-600 font-medium mb-10 print:mb-12">Disetujui Oleh (Group Leader):</p>
-                  <p className="font-extrabold text-slate-900 border-b border-slate-500 inline-block min-w-44 pb-1">
-                    ({emp.groupLeaderName || activeGL?.name || 'Ahmad Hidayat'})
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-1 font-mono">
-                    GL {emp.department || activeGL?.department || 'Operations'}
-                  </p>
+              <section className="mt-6 flex flex-row justify-around items-center gap-8 sm:gap-12 pt-4 border-t-2 border-slate-900/10 print:border-slate-900 print:pt-3">
+                <div className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-xs text-center">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Disetujui Oleh (Group Leader):
+                  </span>
+                  <div className="h-16 w-full flex items-center justify-center border-b border-slate-400/60 relative">
+                    <span className="font-status-mono text-[10px] text-slate-400 opacity-30 italic absolute">
+                      Waiting for signature...
+                    </span>
+                  </div>
+                  <div className="text-center w-full">
+                    <p className="text-sm font-extrabold text-slate-900">
+                      ({emp.groupLeaderName || activeGL?.name || 'Ahmad Hidayat'})
+                    </p>
+                    <p className="font-status-mono text-[10px] text-slate-500 mt-0.5 uppercase tracking-widest">
+                      GL {emp.department || activeGL?.department || 'Operations'}
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <p className="text-slate-600 font-medium mb-10 print:mb-12">Penerima Laporan (Karyawan):</p>
-                  <p className="font-extrabold text-slate-900 border-b border-slate-500 inline-block min-w-44 pb-1">
-                    ({emp.name})
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-1 font-mono">NIK: {emp.nik}</p>
+                <div className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-xs text-center">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Penerima Laporan (Karyawan):
+                  </span>
+                  <div className="h-16 w-full flex items-center justify-center border-b border-slate-400/60 relative">
+                    <span className="font-status-mono text-[10px] text-slate-400 opacity-30 italic absolute">
+                      Waiting for signature...
+                    </span>
+                  </div>
+                  <div className="text-center w-full">
+                    <p className="text-sm font-extrabold text-slate-900">
+                      ({emp.name})
+                    </p>
+                    <p className="font-status-mono text-[10px] text-slate-500 mt-0.5 uppercase tracking-widest">
+                      NIK: {emp.nik}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>
           );
         })}

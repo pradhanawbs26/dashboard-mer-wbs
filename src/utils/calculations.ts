@@ -448,35 +448,60 @@ export function getScoreCategoryBadge(score: number): {
   badgeClass: string;
   borderClass: string;
   color: string;
+  textClass: string;
+  pillSolidClass: string;
 } {
   if (score >= 3.0) {
     return {
       label: 'Baik',
-      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40',
       borderClass: 'border-emerald-500',
-      color: '#10b981',
+      color: '#22c55e',
+      textClass: 'text-emerald-400',
+      pillSolidClass: 'bg-emerald-600 text-white',
     };
   } else if (score >= 2.0) {
     return {
       label: 'Cukup',
-      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
-      borderClass: 'border-blue-500',
-      color: '#3b82f6',
+      badgeClass: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/40',
+      borderClass: 'border-orange-500',
+      color: '#f97316',
+      textClass: 'text-orange-400',
+      pillSolidClass: 'bg-orange-500 text-white',
     };
   } else if (score >= 1.0) {
     return {
       label: 'Kurang',
-      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
-      borderClass: 'border-amber-500',
-      color: '#f59e0b',
+      badgeClass: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/40',
+      borderClass: 'border-yellow-500',
+      color: '#eab308',
+      textClass: 'text-yellow-400',
+      pillSolidClass: 'bg-yellow-400 text-slate-950 font-black',
     };
   } else {
     return {
       label: 'Buruk',
-      badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30',
+      badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40',
       borderClass: 'border-rose-500',
       color: '#ef4444',
+      textClass: 'text-rose-500',
+      pillSolidClass: 'bg-rose-600 text-white',
     };
+  }
+}
+
+export function getScoreFontColor(score: number): {
+  color: string;
+  tailwindClass: string;
+} {
+  if (score >= 3.0) {
+    return { color: '#22c55e', tailwindClass: 'text-emerald-400' };
+  } else if (score >= 2.0) {
+    return { color: '#f97316', tailwindClass: 'text-orange-400' };
+  } else if (score >= 1.0) {
+    return { color: '#facc15', tailwindClass: 'text-yellow-400' };
+  } else {
+    return { color: '#ef4444', tailwindClass: 'text-rose-500' };
   }
 }
 
