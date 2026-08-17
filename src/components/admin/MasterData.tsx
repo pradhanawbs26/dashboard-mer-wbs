@@ -640,7 +640,7 @@ export const MasterData: React.FC = () => {
                 <th className="p-3.5">Peran / Kategori</th>
                 <th className="p-3.5">Alat Berat / Jabatan</th>
                 <th className="p-3.5">Area Kerja</th>
-                <th className="p-3.5">Group Leader</th>
+                <th className="p-3.5">Atasan (GL / HC)</th>
                 <th className="p-3.5 text-center">Aksi</th>
               </tr>
             </thead>

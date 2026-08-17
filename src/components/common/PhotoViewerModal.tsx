@@ -1,5 +1,6 @@
 import React from 'react';
 import { Employee } from '../../types';
+import { useApp } from '../../context/AppContext';
 import { X, User, Briefcase, MapPin, Award, Shield } from 'lucide-react';
 
 interface PhotoViewerModalProps {
@@ -8,7 +9,40 @@ interface PhotoViewerModalProps {
 }
 
 export const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({ employee, onClose }) => {
+  const { employees } = useApp();
   if (!employee) return null;
+
+  // Determine supervisor title & name based on role
+  let supervisorLabel: string | null = null;
+  let supervisorName: string | null = null;
+
+  if (employee.role === 'group_leader') {
+    supervisorLabel = 'Head Coach';
+    if (employee.groupLeaderName) {
+      supervisorName = employee.groupLeaderName;
+    } else if (employee.groupLeaderId) {
+      const hc = employees.find(
+        (e) =>
+          e.nik === employee.groupLeaderId ||
+          e.id === employee.groupLeaderId ||
+          e.role === 'head_coach'
+      );
+      supervisorName = hc ? hc.name : 'Zulni Eldo Putra';
+    } else {
+      const defaultHc = employees.find((e) => e.role === 'head_coach');
+      supervisorName = defaultHc ? defaultHc.name : 'Zulni Eldo Putra';
+    }
+  } else if (employee.role === 'subordinate') {
+    supervisorLabel = 'Group Leader';
+    if (employee.groupLeaderName) {
+      supervisorName = employee.groupLeaderName;
+    } else if (employee.groupLeaderId) {
+      const gl = employees.find(
+        (e) => e.nik === employee.groupLeaderId || e.id === employee.groupLeaderId
+      );
+      supervisorName = gl ? gl.name : '-';
+    }
+  }
 
   return (
     <div 
@@ -98,14 +132,14 @@ export const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({ employee, on
               </span>
             </div>
 
-            {employee.groupLeaderName && (
+            {supervisorLabel && supervisorName && (
               <div className="flex items-center justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-400 font-bold flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-indigo-600" />
-                  Group Leader
+                  {supervisorLabel}
                 </span>
                 <span className="font-bold text-slate-800">
-                  {employee.groupLeaderName}
+                  {supervisorName}
                 </span>
               </div>
             )}

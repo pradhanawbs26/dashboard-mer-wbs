@@ -15,8 +15,9 @@ const MainLayout: React.FC = () => {
 
   // Set favicon and title dynamically
   useEffect(() => {
-    const faviconUrl = 'https://res.cloudinary.com/dgjnlxf69/image/upload/v1786687867/Logo_MER_q2erzz.png';
-    const existingIcons = document.querySelectorAll("link[rel*='icon']");
+    const faviconUrl = 'https://res.cloudinary.com/dgjnlxf69/image/upload/v1786941816/Logo_MER_02_wmtlnu.png';
+    document.title = 'MER Online - PT. WBS';
+    const existingIcons = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
     existingIcons.forEach((el) => el.setAttribute('href', faviconUrl));
     
     if (existingIcons.length === 0) {
