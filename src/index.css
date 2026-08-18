@@ -144,12 +144,34 @@
     print-color-adjust: exact !important;
   }
 
-  header,
   nav,
   aside,
   .print\:hidden,
-  [data-print-hide="true"] {
+  [data-print-hide="true"],
+  button,
+  .no-print {
     display: none !important;
+  }
+
+  /* Ensure header inside print cards is always fully visible */
+  .mer-print-page header,
+  .printable-mer-card header,
+  header.mer-print-header,
+  .mer-print-header {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .mer-print-page img,
+  .printable-mer-card img,
+  .mer-print-header img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   main {
@@ -173,9 +195,7 @@
     break-inside: avoid !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 270mm !important;
-    max-height: 278mm !important;
-    height: 274mm !important;
+    min-height: 260mm !important;
     margin: 0 0 0 0 !important;
     padding: 6mm 8mm !important;
     box-sizing: border-box !important;

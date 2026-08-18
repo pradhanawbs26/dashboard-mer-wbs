@@ -386,31 +386,35 @@ export const ScoreInputForm: React.FC = () => {
               }`}
             >
               {selectedEmp ? (
-                <div className="flex items-center space-x-2.5 truncate">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center shrink-0 text-xs">
-                    {selectedEmp.name.charAt(0).toUpperCase()}
+                <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center shrink-0 text-xs">
+                    {selectedEmp.photoUrl ? (
+                      <img src={selectedEmp.photoUrl} alt={selectedEmp.name} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      selectedEmp.name.charAt(0).toUpperCase()
+                    )}
                   </div>
-                  <div className="truncate">
-                    <div className="flex items-center space-x-1.5 truncate">
-                      <span className="font-extrabold text-slate-900 text-xs truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
                         {selectedEmp.name}
                       </span>
-                      <span className="text-[11px] font-mono text-slate-600 bg-slate-200/70 px-1.5 py-0.2 rounded font-bold shrink-0">
+                      <span className="text-[10px] font-mono text-slate-600 bg-slate-200/80 px-1.5 py-0.2 rounded font-bold">
                         NIK: {selectedEmp.nik}
                       </span>
                     </div>
                     <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                      {selectedEmp.category} {selectedEmp.equipmentType ? `• [${selectedEmp.equipmentType}]` : ''} • {selectedEmp.department}
+                      {selectedEmp.category} {selectedEmp.equipmentType ? `• [${selectedEmp.equipmentType}]` : ''} • Area: {selectedEmp.department}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center space-x-2.5 truncate">
-                  <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-500 font-bold flex items-center justify-center shrink-0 text-xs">
+                <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-500 font-bold flex items-center justify-center shrink-0 text-xs">
                     <User className="w-4 h-4" />
                   </div>
-                  <div className="truncate">
-                    <span className="font-semibold text-slate-500 text-xs">
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-600 text-xs">
                       -- Pilih Karyawan Subordinat (Cari NIK / Nama) --
                     </span>
                     <div className="text-[10px] text-slate-400 truncate mt-0.5">
@@ -420,7 +424,7 @@ export const ScoreInputForm: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center space-x-1 shrink-0 ml-2">
+              <div className="flex items-center space-x-1 shrink-0">
                 {selectedEmp && (
                   <span
                     role="button"
@@ -429,7 +433,7 @@ export const ScoreInputForm: React.FC = () => {
                       e.stopPropagation();
                       setSelectedNik('');
                     }}
-                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors mr-1"
+                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors mr-1 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </span>
@@ -557,9 +561,9 @@ export const ScoreInputForm: React.FC = () => {
                             isSelected ? 'bg-blue-50/90 font-bold border-l-4 border-blue-600' : 'bg-white'
                           }`}
                         >
-                          <div className="flex items-center space-x-2.5 truncate">
+                          <div className="flex items-start space-x-2.5 min-w-0 flex-1">
                             <div
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold mt-0.5 overflow-hidden ${
                                 isSelected
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-slate-100 text-slate-700'
@@ -567,16 +571,19 @@ export const ScoreInputForm: React.FC = () => {
                             >
                               {isSelected ? (
                                 <Check className="w-4 h-4" />
+                              ) : emp.photoUrl ? (
+                                <img src={emp.photoUrl} alt={emp.name} className="w-full h-full object-cover" />
                               ) : (
                                 emp.name.charAt(0).toUpperCase()
                               )}
                             </div>
 
-                            <div className="truncate">
-                              <div className="flex items-center space-x-2 truncate">
-                                <span className="font-bold text-slate-900 text-xs truncate">
-                                  {emp.name}
-                                </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-extrabold text-slate-900 text-xs sm:text-sm leading-snug">
+                                {emp.name}
+                              </p>
+
+                              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                 <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded shrink-0">
                                   {emp.nik}
                                 </span>
@@ -592,14 +599,14 @@ export const ScoreInputForm: React.FC = () => {
                               </div>
 
                               <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                                {emp.position} • Area: {emp.department}
-                                {emp.equipmentType ? ` [${emp.equipmentType}]` : ''} • GL: {emp.groupLeaderName}
+                                {emp.position || 'Subordinat'} • Area: {emp.department}
+                                {emp.equipmentType ? ` [${emp.equipmentType}]` : ''}
                               </div>
                             </div>
                           </div>
 
                           {/* Evaluation status in current period */}
-                          <div className="shrink-0 text-right">
+                          <div className="shrink-0 text-right ml-2">
                             {periodStatus.evaluated ? (
                               <div className="flex flex-col items-end">
                                 <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full flex items-center space-x-1">

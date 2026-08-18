@@ -629,9 +629,10 @@ export const MasterData: React.FC = () => {
         </div>
       </div>
 
-      {/* Employees Data Table */}
+      {/* Employees Data Table & Mobile Cards */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-800">
             <thead className="bg-slate-50 text-slate-500 uppercase font-semibold border-b border-slate-200">
               <tr>
@@ -689,7 +690,7 @@ export const MasterData: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => togglePasswordVisibility(emp.id)}
-                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
                           title={isPassVisible ? 'Sembunyikan Password' : 'Lihat Password'}
                         >
                           {isPassVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -697,78 +698,213 @@ export const MasterData: React.FC = () => {
                       </div>
                     </td>
 
-                  <td className="p-3.5">
-                    <div className="flex flex-col space-y-1">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded w-max ${
-                          emp.role === 'admin'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : emp.role === 'head_coach'
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : emp.role === 'group_leader'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}
-                      >
-                        {emp.role === 'head_coach' ? 'HEAD COACH' : emp.role.toUpperCase().replace('_', ' ')}
-                      </span>
-                      {emp.role === 'subordinate' && (
-                        <span className="text-[10px] text-slate-500">
-                          {emp.category}
+                    <td className="p-3.5">
+                      <div className="flex flex-col space-y-1">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded w-max ${
+                            emp.role === 'admin'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : emp.role === 'head_coach'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : emp.role === 'group_leader'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {emp.role === 'head_coach' ? 'HEAD COACH' : emp.role.toUpperCase().replace('_', ' ')}
+                        </span>
+                        {emp.role === 'subordinate' && (
+                          <span className="text-[10px] text-slate-500">
+                            {emp.category}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-3.5">
+                      <p className="font-semibold text-slate-800">{emp.position}</p>
+                      {emp.equipmentType && (
+                        <span className="text-[10px] text-blue-600 flex items-center space-x-1 mt-0.5 font-medium">
+                          <HardHat className="w-3 h-3" />
+                          <span>{emp.equipmentType}</span>
                         </span>
                       )}
-                    </div>
-                  </td>
+                    </td>
 
-                  <td className="p-3.5">
-                    <p className="font-semibold text-slate-800">{emp.position}</p>
-                    {emp.equipmentType && (
-                      <span className="text-[10px] text-blue-600 flex items-center space-x-1 mt-0.5 font-medium">
-                        <HardHat className="w-3 h-3" />
-                        <span>{emp.equipmentType}</span>
-                      </span>
-                    )}
-                  </td>
+                    <td className="p-3.5 text-slate-600 font-medium">
+                      {emp.department}
+                    </td>
 
-                  <td className="p-3.5 text-slate-600 font-medium">
-                    {emp.department}
-                  </td>
-
-                  <td className="p-3.5 text-slate-500">
-                    {emp.groupLeaderName ? (
-                      <span className="text-slate-800 font-medium">
-                        {emp.role === 'group_leader' ? 'HC: ' : 'GL: '}{emp.groupLeaderName}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-
-                  <td className="p-3.5 text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <button
-                        onClick={() => openEditModal(emp)}
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Edit Master Data"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      {emp.role !== 'admin' && (
-                        <button
-                          onClick={() => handleDelete(emp)}
-                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Hapus Karyawan"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    <td className="p-3.5 text-slate-500">
+                      {emp.groupLeaderName ? (
+                        <span className="text-slate-800 font-medium">
+                          {emp.role === 'group_leader' ? 'HC: ' : 'GL: '}{emp.groupLeaderName}
+                        </span>
+                      ) : (
+                        '-'
                       )}
-                    </div>
+                    </td>
+
+                    <td className="p-3.5 text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                        <button
+                          onClick={() => openEditModal(emp)}
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Master Data"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        {emp.role !== 'admin' && (
+                          <button
+                            onClick={() => handleDelete(emp)}
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Hapus Karyawan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredEmployees.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                    Tidak ada data karyawan yang cocok dengan filter.
                   </td>
                 </tr>
-              );
-            })}
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card-Based View */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredEmployees.map((emp) => {
+            const empPass = emp.password || (emp.role === 'admin' ? 'admin123' : '123456');
+            const isPassVisible = !!visiblePasswords[emp.id];
+
+            return (
+              <div key={emp.id} className="p-3.5 space-y-2.5 bg-white hover:bg-slate-50/70 transition-colors">
+                {/* Header: Photo + Name + Role Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setPhotoViewingEmp(emp)}
+                      className="relative group/avatar w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
+                      title="Klik untuk melihat foto profil besar"
+                    >
+                      {emp.photoUrl ? (
+                        <img
+                          src={emp.photoUrl}
+                          alt={emp.name}
+                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                        />
+                      ) : (
+                        emp.name.charAt(0)
+                      )}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </div>
+                    </button>
+
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-slate-900 text-sm truncate">
+                        {emp.name}
+                      </p>
+                      <div className="flex items-center space-x-2 text-[11px] text-slate-500">
+                        <span className="font-mono text-blue-600 font-bold">
+                          NIK: {emp.nik}
+                        </span>
+                        <span>•</span>
+                        <span className="font-medium truncate">{emp.department}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded shrink-0 ${
+                      emp.role === 'admin'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : emp.role === 'head_coach'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                        : emp.role === 'group_leader'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}
+                  >
+                    {emp.role === 'head_coach' ? 'HEAD COACH' : emp.role.toUpperCase().replace('_', ' ')}
+                  </span>
+                </div>
+
+                {/* Info Details Row */}
+                <div className="bg-slate-50/90 rounded-xl p-2.5 space-y-1.5 text-xs border border-slate-100">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Jabatan & Kategori:</span>
+                    <span className="font-bold text-slate-800 truncate text-right">
+                      {emp.position || '-'} {emp.category ? `(${emp.category})` : ''}
+                      {emp.equipmentType ? ` • ${emp.equipmentType}` : ''}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Atasan Langsung:</span>
+                    <span className="font-semibold text-slate-700 truncate">
+                      {emp.groupLeaderName ? (
+                        <span>{emp.role === 'group_leader' ? 'HC: ' : 'GL: '}{emp.groupLeaderName}</span>
+                      ) : '-'}
+                    </span>
+                  </div>
+
+                  {/* Password row */}
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Password Akun:</span>
+                    <div className="flex items-center space-x-1.5 font-mono">
+                      <span className="bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-800 font-semibold">
+                        {isPassVisible ? empPass : '••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility(emp.id)}
+                        className="p-1 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                        title={isPassVisible ? 'Sembunyikan' : 'Lihat Password'}
+                      >
+                        {isPassVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Footer */}
+                <div className="flex items-center justify-end space-x-2 pt-1">
+                  <button
+                    onClick={() => openEditModal(emp)}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
+                  {emp.role !== 'admin' && (
+                    <button
+                      onClick={() => handleDelete(emp)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredEmployees.length === 0 && (
+            <div className="text-center py-10 text-slate-400 text-xs">
+              Tidak ada data karyawan yang cocok dengan filter pencarian.
+            </div>
+          )}
         </div>
       </div>
 

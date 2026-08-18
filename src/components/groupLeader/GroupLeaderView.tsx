@@ -5,6 +5,7 @@ import { UserSettingsModal } from '../common/UserSettingsModal';
 import { ProfileMenuDropdown } from '../common/ProfileMenuDropdown';
 import { YtdParameterTable } from '../common/YtdParameterTable';
 import { PhotoViewerModal } from '../common/PhotoViewerModal';
+import { AdminPrintReport } from '../admin/AdminPrintReport';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
@@ -32,6 +33,8 @@ import {
   Info,
   Sparkles,
   Maximize2,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   BarChart,
@@ -55,6 +58,7 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
     selectedPeriod,
     operatorParameters,
     nonomParameters,
+    logout,
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -260,21 +264,19 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
         defaultTab={settingsTab}
       />
 
+      {/* Tab: Cetak Rapor */}
+      {activeTab === 'print_report' && (
+        <AdminPrintReport />
+      )}
+
       {/* Tab: Profil Saya */}
       {activeTab === 'profile' && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 text-slate-800 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-lg font-bold text-blue-600">
-              Profil & Informasi Group Leader
+            <h3 className="text-lg font-bold text-blue-600 flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-blue-600" />
+              <span>Profil Group Leader</span>
             </h3>
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-              title="Pengaturan Foto Profil & Password Akun"
-            >
-              <Settings className="w-4 h-4 text-slate-600" />
-              <span>Pengaturan Akun</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -332,6 +334,17 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Logout Button */}
+          <div className="pt-4 border-t border-slate-200/80 flex justify-end">
+            <button
+              onClick={logout}
+              className="flex items-center space-x-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Keluar dari Akun (Logout)</span>
+            </button>
           </div>
         </div>
       )}
@@ -647,38 +660,29 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                           </div>
                         </button>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate">
-                              {item.employee.name}
-                            </h4>
-                            <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
-                              NIK: {item.employee.nik}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                            {item.employee.category}{' '}
-                            {item.employee.equipmentType
-                              ? `• ${item.employee.equipmentType}`
-                              : ''}{' '}
-                            • {item.employee.position}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug">
+                            {item.employee.name}
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                            {item.employee.position || 'Operator'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-3 shrink-0 ml-2">
+                      <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0 ml-3">
                         <div className="text-right">
-                          <span className="text-lg sm:text-xl font-black text-blue-600">
+                          <span className="text-base sm:text-xl font-black text-blue-600 block leading-tight">
                             {item.finalScore.toFixed(2)}
                           </span>
                           <span
-                            className={`text-[9px] block font-bold px-1.5 py-0.5 rounded border ${badge.badgeClass}`}
+                            className={`text-[10px] inline-block font-bold px-2 py-0.5 rounded-full border mt-0.5 ${badge.badgeClass}`}
                           >
-                            {badge.label.split(' ')[0]}
+                            {badge.label}
                           </span>
                         </div>
 
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                       </div>
                     </div>
                   );
@@ -697,14 +701,14 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
 
       {/* Member Detail Drawer / Modal */}
       {memberDetailObj && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white border border-slate-200 rounded-xl max-w-4xl w-full p-4 sm:p-6 text-slate-800 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center space-x-3">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-4xl w-full p-3.5 sm:p-6 text-slate-800 shadow-2xl space-y-3 sm:space-y-4 max-h-[92vh] overflow-y-auto overflow-x-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setPhotoViewingEmployee(memberDetailObj.employee)}
-                  className="relative group/photo w-12 h-12 rounded-2xl overflow-hidden shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-200 hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer bg-blue-600 text-white flex items-center justify-center"
+                  className="relative group/photo w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-200 hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer bg-blue-600 text-white flex items-center justify-center"
                   title="Klik untuk melihat foto profil besar"
                 >
                   {memberDetailObj.employee.photoUrl ? (
@@ -714,7 +718,7 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                       className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform"
                     />
                   ) : (
-                    <span className="font-black text-lg">
+                    <span className="font-black text-sm sm:text-lg">
                       {memberDetailObj.employee.name.charAt(0)}
                     </span>
                   )}
@@ -723,28 +727,28 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
                   </div>
                 </button>
 
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-blue-600">
-                    Rincian Evaluasi & Rapor MER Karyawan
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-blue-600 truncate">
+                    Rincian Evaluasi & Rapor MER
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    <strong className="text-slate-800">{memberDetailObj.employee.name}</strong> (NIK: {memberDetailObj.employee.nik}) • Area Kerja: {memberDetailObj.employee.department}
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
+                    <strong className="text-slate-800">{memberDetailObj.employee.name}</strong> ({memberDetailObj.employee.nik}) • {memberDetailObj.employee.department}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedMemberNik(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg text-lg cursor-pointer shrink-0"
               >
                 ✕
               </button>
             </div>
 
             {/* Modal Sub-Tabs */}
-            <div className="flex border-b border-slate-200 space-x-4">
+            <div className="flex border-b border-slate-200 space-x-3 sm:space-x-4 overflow-x-auto no-scrollbar">
               <button
                 onClick={() => setMemberModalTab('ytd')}
-                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                className={`pb-2 text-xs font-bold transition-all border-b-2 shrink-0 ${
                   memberModalTab === 'ytd'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -754,7 +758,7 @@ export const GroupLeaderView: React.FC<GroupLeaderViewProps> = ({ activeTab = 't
               </button>
               <button
                 onClick={() => setMemberModalTab('period')}
-                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                className={`pb-2 text-xs font-bold transition-all border-b-2 shrink-0 ${
                   memberModalTab === 'period'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'

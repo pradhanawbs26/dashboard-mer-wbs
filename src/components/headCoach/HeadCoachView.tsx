@@ -4,6 +4,7 @@ import { Employee } from '../../types';
 import { UserSettingsModal } from '../common/UserSettingsModal';
 import { YtdParameterTable } from '../common/YtdParameterTable';
 import { PhotoViewerModal } from '../common/PhotoViewerModal';
+import { AdminPrintReport } from '../admin/AdminPrintReport';
 import {
   getScoreCategoryBadge,
   formatPeriodLabel,
@@ -32,6 +33,8 @@ import {
   Database,
   Calendar,
   Maximize2,
+  LogOut,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   BarChart,
@@ -55,6 +58,7 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
     selectedPeriod,
     operatorParameters,
     nonomParameters,
+    logout,
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -285,22 +289,19 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
         defaultTab={settingsTab}
       />
 
+      {/* Tab: Cetak Rapor */}
+      {activeTab === 'print_report' && (
+        <AdminPrintReport />
+      )}
+
       {/* Tab: Profil Saya */}
       {activeTab === 'profile' && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 text-slate-800 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-lg font-bold text-amber-700 flex items-center space-x-2">
               <ShieldCheck className="w-5 h-5 text-amber-600" />
-              <span>Profil & Informasi Head Coach</span>
+              <span>Profil Head Coach</span>
             </h3>
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-              title="Pengaturan Foto Profil & Password Akun"
-            >
-              <Settings className="w-4 h-4 text-slate-600" />
-              <span>Pengaturan Akun</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -363,6 +364,17 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                 );
               })}
             </div>
+          </div>
+
+          {/* Logout Button */}
+          <div className="pt-4 border-t border-slate-200/80 flex justify-end">
+            <button
+              onClick={logout}
+              className="flex items-center space-x-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Keluar dari Akun (Logout)</span>
+            </button>
           </div>
         </div>
       )}
@@ -501,374 +513,406 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
       {/* Tab: Dashboard Tim Head Coach */}
       {(activeTab === 'team_dashboard' || (activeTab !== 'profile' && activeTab !== 'ytd_report')) && (
         <>
-          {/* Stats Metric Cards Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Total Group Leader */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-bold uppercase">Total Group Leader</span>
-                <Users className="w-4 h-4 text-blue-600" />
-              </div>
-              <p className="text-2xl font-black text-slate-900">{myGroupLeaders.length} GL</p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Bawahan direct Head Coach
-              </p>
-            </div>
+          {activeGlDetail ? (
+            /* Sub-page: Detail Subordinat Tim Group Leader */
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Top Navigation Back Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedGlNik(null);
+                    setGlModalSearchTerm('');
+                  }}
+                  className="inline-flex items-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-amber-700 border border-slate-200 hover:border-amber-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer active:scale-95 w-fit"
+                >
+                  <ArrowLeft className="w-4 h-4 text-amber-600" />
+                  <span>Kembali ke Peringkat Tim Group Leader</span>
+                </button>
 
-            {/* Total Subordinates */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-bold uppercase">Subordinat Tim</span>
-                <HardHat className="w-4 h-4 text-amber-600" />
-              </div>
-              <p className="text-2xl font-black text-slate-900">{allHCSubordinates.length} Orang</p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Di bawah {myGroupLeaders.length} tim Group Leader
-              </p>
-            </div>
-
-            {/* Overall MER Score */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-bold uppercase">Rerata MER Overall</span>
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="text-2xl font-black text-emerald-600">{hcOverallAvgScore}</p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Status: {parseFloat(hcOverallAvgScore) >= 3.0 ? 'Performa Baik' : 'Perlu Evaluasi'}
-              </p>
-            </div>
-
-            {/* Top GL Team */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-bold uppercase">Best GL Team</span>
-                <Award className="w-4 h-4 text-amber-500" />
-              </div>
-              <p className="text-sm font-extrabold text-amber-700 truncate">
-                {topGlTeam ? topGlTeam.groupLeader.name : '-'}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Rerata Tim: {topGlTeam ? topGlTeam.avgScore.toFixed(2) : '0.00'}
-              </p>
-            </div>
-          </div>
-
-          {/* Main Dashboard Section */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm space-y-6">
-            {/* Search Header */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Cari nama Group Leader, NIK, atau area kerja..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-600"
-                />
-              </div>
-            </div>
-
-            {/* Bar Chart comparing GL Teams */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
-                <BarChart2 className="w-4 h-4 text-amber-600" />
-                <span>Grafik Perbandingan Rerata Nilai MER per Tim Group Leader ({formatPeriodLabel(selectedPeriod)})</span>
-              </h3>
-              <div className="h-56 sm:h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
-                    <YAxis domain={[0, 4.5]} stroke="#64748b" fontSize={11} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        borderColor: '#e2e8f0',
-                        borderRadius: '0.75rem',
-                        color: '#0f172a',
-                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                      }}
-                      formatter={(val: any) => [`${val} / 4.00`, 'Rerata MER Tim GL']}
-                    />
-                    <Bar dataKey="score" fill="#d97706" radius={[6, 6, 0, 0]} name="Rerata MER Tim" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Group Leader List Cards */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-amber-600" />
-                <span>Daftar Tim Group Leader & Rata-Rata Nilai MER Tim</span>
-              </h3>
-
-              <div className="space-y-3">
-                {filteredGlStats.map((glItem, index) => {
-                  const badge = getScoreCategoryBadge(glItem.avgScore);
-                  return (
-                    <div
-                      key={glItem.groupLeader.id}
-                      className="bg-slate-50 border border-slate-200 hover:border-amber-400 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:bg-slate-100/70"
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => setPhotoViewingEmp(glItem.groupLeader)}
-                          className="relative group/avatar w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200 overflow-hidden shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
-                          title="Klik untuk melihat foto profil Group Leader"
-                        >
-                          {glItem.groupLeader.photoUrl ? (
-                            <img
-                              src={glItem.groupLeader.photoUrl}
-                              alt={glItem.groupLeader.name}
-                              className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
-                            />
-                          ) : (
-                            <span>#{index + 1}</span>
-                          )}
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
-                            <Maximize2 className="w-3 h-3" />
-                          </div>
-                        </button>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="font-extrabold text-slate-900 text-sm">
-                              {glItem.groupLeader.name}
-                            </p>
-                            <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded border border-blue-200 font-mono">
-                              NIK: {glItem.groupLeader.nik}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5 flex items-center space-x-2">
-                            <span>Area Kerja: <strong>{glItem.groupLeader.department}</strong></span>
-                            <span>•</span>
-                            <span>Jabatan: {glItem.groupLeader.position}</span>
-                          </p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <span className="text-[11px] bg-slate-200 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full">
-                              {glItem.subordinates.length} Subordinat
-                            </span>
-                            <span className="text-[11px] bg-emerald-50 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200">
-                              {glItem.validReportsCount} Laporan Rapor
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Score & Action */}
-                      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-2 sm:pt-0 border-t sm:border-0 border-slate-200">
-                        <div className="text-left sm:text-right">
-                          <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                            Rerata MER Tim GL
-                          </span>
-                          <span className="text-2xl font-black text-amber-600">
-                            {glItem.avgScore.toFixed(2)}
-                          </span>
-                          <span className={`block text-[10px] font-bold mt-0.5 ${badge.color}`}>
-                            {badge.label}
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => setSelectedGlNik(glItem.groupLeader.nik)}
-                          className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Detail Subordinat Tim</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Group Leader Team Subordinates Modal */}
-      {activeGlDetail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full p-5 sm:p-6 text-slate-800 shadow-xl space-y-4 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <span className="text-xs font-bold text-amber-700 uppercase">
-                  Detail Tim Group Leader
-                </span>
-                <h3 className="text-lg font-extrabold text-slate-900">
-                  {activeGlDetail.groupLeader.name} (NIK: {activeGlDetail.groupLeader.nik})
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Area Kerja: {activeGlDetail.groupLeader.department} • Total Subordinat: {activeGlDetail.subordinates.length} Orang
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedGlNik(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Team Score Summary */}
-            <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-amber-800">
-                  Rerata Nilai MER Tim Group Leader ({formatPeriodLabel(selectedPeriod)})
-                </span>
-                <p className="text-2xl font-black text-amber-700">
-                  {activeGlDetail.avgScore.toFixed(2)} <span className="text-xs text-slate-500 font-normal">/ 4.00</span>
-                </p>
-              </div>
-              <span className={`text-xs px-3 py-1 rounded-full font-bold border ${getScoreCategoryBadge(activeGlDetail.avgScore).badgeClass}`}>
-                {getScoreCategoryBadge(activeGlDetail.avgScore).label}
-              </span>
-            </div>
-
-            {/* Subordinates Table Header with Search */}
-            <div className="space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <h4 className="font-bold text-xs text-slate-800">
-                  Daftar Subordinat di Bawah GL {activeGlDetail.groupLeader.name}:
-                </h4>
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={glModalSearchTerm}
-                    onChange={(e) => setGlModalSearchTerm(e.target.value)}
-                    placeholder="Cari subordinat (NIK/Nama)..."
-                    className="w-full pl-8 pr-7 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-amber-600"
-                  />
-                  {glModalSearchTerm && (
-                    <button
-                      onClick={() => setGlModalSearchTerm('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                <div className="text-xs text-slate-500 font-medium">
+                  Periode Evaluasi: <strong className="text-slate-800">{formatPeriodLabel(selectedPeriod)}</strong>
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100 font-bold text-slate-600 border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Karyawan</th>
-                      <th className="p-3">Kategori / Jabatan</th>
-                      <th className="p-3">Skor MER Periode</th>
-                      <th className="p-3 text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {activeGlDetail.subReports
-                      .filter((sr) => {
-                        if (!glModalSearchTerm.trim()) return true;
-                        const q = glModalSearchTerm.toLowerCase().trim();
-                        return (
-                          sr.subordinate.name.toLowerCase().includes(q) ||
-                          sr.subordinate.nik.toLowerCase().includes(q) ||
-                          sr.subordinate.position.toLowerCase().includes(q) ||
-                          (sr.subordinate.equipmentType || '').toLowerCase().includes(q)
-                        );
-                      })
-                      .map((sr) => {
-                        const badge = getScoreCategoryBadge(sr.finalScore);
-                        return (
-                          <tr key={sr.subordinate.id} className="hover:bg-slate-50">
-                            <td className="p-3">
-                              <div className="flex items-center space-x-2.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setPhotoViewingEmp(sr.subordinate)}
-                                  className="relative group/avatar w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
-                                  title="Klik untuk melihat foto profil besar"
-                                >
-                                  {sr.subordinate.photoUrl ? (
-                                    <img
-                                      src={sr.subordinate.photoUrl}
-                                      alt={sr.subordinate.name}
-                                      className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
-                                    />
-                                  ) : (
-                                    sr.subordinate.name.charAt(0)
-                                  )}
-                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                    <Maximize2 className="w-3 h-3" />
-                                  </div>
-                                </button>
-                                <div>
-                                  <p className="font-bold text-slate-900">{sr.subordinate.name}</p>
-                                  <span className="text-[10px] text-blue-600 font-mono">
-                                    NIK: {sr.subordinate.nik}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <p className="font-semibold text-slate-800">{sr.subordinate.position}</p>
-                              <span className="text-[10px] text-slate-500">
-                                {sr.subordinate.category} {sr.subordinate.equipmentType ? `(${sr.subordinate.equipmentType})` : ''}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              {sr.report ? (
-                                <div>
-                                  <span className="font-black text-sm text-slate-900">
-                                    {sr.finalScore.toFixed(2)}
-                                  </span>
-                                  <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded ${badge.color}`}>
-                                    {badge.label}
-                                  </span>
-                                </div>
+              {/* Group Leader Hero Banner Card */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 text-slate-800 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-3.5 sm:space-x-4 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setPhotoViewingEmp(activeGlDetail.groupLeader)}
+                      className="relative group/avatar w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-100 text-amber-800 font-black text-xl flex items-center justify-center shrink-0 border-2 border-amber-200 overflow-hidden shadow-xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                      title="Klik untuk melihat foto profil Group Leader"
+                    >
+                      {activeGlDetail.groupLeader.photoUrl ? (
+                        <img
+                          src={activeGlDetail.groupLeader.photoUrl}
+                          alt={activeGlDetail.groupLeader.name}
+                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                        />
+                      ) : (
+                        <span>{activeGlDetail.groupLeader.name.charAt(0)}</span>
+                      )}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Maximize2 className="w-4 h-4" />
+                      </div>
+                    </button>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
+                          Group Leader
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-mono font-bold">
+                          NIK: {activeGlDetail.groupLeader.nik}
+                        </span>
+                      </div>
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900 leading-tight mt-1 truncate">
+                        {activeGlDetail.groupLeader.name}
+                      </h2>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        Area Kerja: <strong className="text-slate-700">{activeGlDetail.groupLeader.department}</strong> • {activeGlDetail.groupLeader.position}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Rerata & Subordinat Stats */}
+                  <div className="flex items-center space-x-4 bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 sm:px-4 sm:py-3 shrink-0">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-amber-800 block">
+                        Rerata Nilai MER Tim
+                      </span>
+                      <div className="flex items-baseline space-x-1.5">
+                        <span className="text-2xl font-black text-amber-700">
+                          {activeGlDetail.avgScore.toFixed(2)}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">/ 4.00</span>
+                      </div>
+                    </div>
+                    <div className="h-8 w-px bg-amber-200"></div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                        Total Anggota
+                      </span>
+                      <span className="text-lg font-black text-slate-800">
+                        {activeGlDetail.subordinates.length} Subordinat
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subordinates List Section */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 text-slate-800 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center space-x-2">
+                      <HardHat className="w-4 h-4 text-amber-600" />
+                      <span>Daftar Subordinat Tim</span>
+                    </h3>
+                  </div>
+
+                  <div className="relative w-full sm:w-72">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={glModalSearchTerm}
+                      onChange={(e) => setGlModalSearchTerm(e.target.value)}
+                      placeholder="Cari subordinat (Nama / NIK / Jabatan)..."
+                      className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-amber-600"
+                    />
+                    {glModalSearchTerm && (
+                      <button
+                        onClick={() => setGlModalSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subordinate Cards List */}
+                <div className="space-y-2.5">
+                  {activeGlDetail.subReports
+                    .filter((sr) => {
+                      if (!glModalSearchTerm.trim()) return true;
+                      const q = glModalSearchTerm.toLowerCase().trim();
+                      return (
+                        sr.subordinate.name.toLowerCase().includes(q) ||
+                        sr.subordinate.nik.toLowerCase().includes(q) ||
+                        sr.subordinate.position.toLowerCase().includes(q) ||
+                        (sr.subordinate.equipmentType || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .map((sr) => {
+                      const badge = getScoreCategoryBadge(sr.finalScore);
+                      return (
+                        <div
+                          key={sr.subordinate.id}
+                          onClick={() => setSelectedSubNik(sr.subordinate.nik)}
+                          className="bg-slate-50 border border-slate-200 hover:border-amber-300 rounded-xl p-3.5 sm:p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-slate-100/70"
+                        >
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoViewingEmp(sr.subordinate);
+                              }}
+                              className="relative group/avatar w-10 h-10 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border-2 border-white shadow-xs ring-1 ring-slate-200 hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                              title="Klik untuk melihat foto profil"
+                            >
+                              {sr.subordinate.photoUrl ? (
+                                <img
+                                  src={sr.subordinate.photoUrl}
+                                  alt={sr.subordinate.name}
+                                  className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                                />
                               ) : (
-                                <span className="text-slate-400 text-[10px] italic">Belum Diinput</span>
+                                sr.subordinate.name.charAt(0)
                               )}
-                            </td>
-                            <td className="p-3 text-center">
-                              <button
-                                onClick={() => {
-                                  setSelectedSubNik(sr.subordinate.nik);
-                                }}
-                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-pointer"
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <Maximize2 className="w-3.5 h-3.5" />
+                              </div>
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug">
+                                {sr.subordinate.name}
+                              </h4>
+                              <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                                {sr.subordinate.position || 'Operator'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0 ml-3">
+                            <div className="text-right">
+                              <span className="text-base sm:text-xl font-black text-amber-700 block leading-tight">
+                                {sr.report ? sr.finalScore.toFixed(2) : '0.00'}
+                              </span>
+                              <span
+                                className={`text-[10px] inline-block font-bold px-2 py-0.5 rounded-full border mt-0.5 ${badge.badgeClass}`}
                               >
-                                Detail Rapor
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
+                                {sr.report ? badge.label : 'Belum Diinput'}
+                              </span>
+                            </div>
+
+                            <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {activeGlDetail.subReports.length === 0 && (
+                    <div className="text-center py-8 text-xs text-slate-400">
+                      Belum ada data subordinat untuk Group Leader ini.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          ) : (
+            <>
+              {/* Stats Metric Cards Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {/* Total Group Leader */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-500 mb-2">
+                    <span className="text-xs font-bold uppercase">Total Group Leader</span>
+                    <Users className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <p className="text-2xl font-black text-slate-900">{myGroupLeaders.length} GL</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Bawahan direct Head Coach
+                  </p>
+                </div>
 
-            <div className="pt-3 border-t border-slate-100 text-right">
-              <button
-                onClick={() => setSelectedGlNik(null)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2 rounded-xl"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+                {/* Total Subordinates */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-500 mb-2">
+                    <span className="text-xs font-bold uppercase">Subordinat Tim</span>
+                    <HardHat className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <p className="text-2xl font-black text-slate-900">{allHCSubordinates.length} Orang</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Di bawah {myGroupLeaders.length} tim Group Leader
+                  </p>
+                </div>
+
+                {/* Overall MER Score */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-500 mb-2">
+                    <span className="text-xs font-bold uppercase">Rerata MER Overall</span>
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <p className="text-2xl font-black text-emerald-600">{hcOverallAvgScore}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Status: {parseFloat(hcOverallAvgScore) >= 3.0 ? 'Performa Baik' : 'Perlu Evaluasi'}
+                  </p>
+                </div>
+
+                {/* Top GL Team */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4 text-slate-800 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-500 mb-2">
+                    <span className="text-xs font-bold uppercase">Best GL Team</span>
+                    <Award className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <p className="text-sm font-extrabold text-amber-700 truncate">
+                    {topGlTeam ? topGlTeam.groupLeader.name : '-'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Rerata Tim: {topGlTeam ? topGlTeam.avgScore.toFixed(2) : '0.00'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Main Dashboard Section */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-800 shadow-sm space-y-6">
+                {/* Search Header */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama Group Leader, NIK, atau area kerja..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Bar Chart comparing GL Teams */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                    <BarChart2 className="w-4 h-4 text-amber-600" />
+                    <span>Perbandingan Rerata MER</span>
+                  </h3>
+                  <div className="h-56 sm:h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                        <YAxis domain={[0, 4.5]} stroke="#64748b" fontSize={11} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#ffffff',
+                            borderColor: '#e2e8f0',
+                            borderRadius: '0.75rem',
+                            color: '#0f172a',
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                          }}
+                          formatter={(val: any) => [`${val} / 4.00`, 'Rerata MER Tim GL']}
+                        />
+                        <Bar dataKey="score" fill="#d97706" radius={[6, 6, 0, 0]} name="Rerata MER Tim" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Group Leader List Cards */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                    <Layers className="w-4 h-4 text-amber-600" />
+                    <span>Peringkat Tim Group Leader</span>
+                  </h3>
+
+                  <div className="space-y-3">
+                    {filteredGlStats.map((glItem, index) => {
+                      const badge = getScoreCategoryBadge(glItem.avgScore);
+                      return (
+                        <div
+                          key={glItem.groupLeader.id}
+                          className="bg-slate-50 border border-slate-200 hover:border-amber-400 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:bg-slate-100/70"
+                        >
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => setPhotoViewingEmp(glItem.groupLeader)}
+                              className="relative group/avatar w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200 overflow-hidden shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                              title="Klik untuk melihat foto profil Group Leader"
+                            >
+                              {glItem.groupLeader.photoUrl ? (
+                                <img
+                                  src={glItem.groupLeader.photoUrl}
+                                  alt={glItem.groupLeader.name}
+                                  className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                                />
+                              ) : (
+                                <span>#{index + 1}</span>
+                              )}
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <Maximize2 className="w-3 h-3" />
+                              </div>
+                            </button>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <p className="font-extrabold text-slate-900 text-sm">
+                                  {glItem.groupLeader.name}
+                                </p>
+                                <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded border border-blue-200 font-mono">
+                                  NIK: {glItem.groupLeader.nik}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-0.5 flex items-center space-x-2">
+                                <span>Area Kerja: <strong>{glItem.groupLeader.department}</strong></span>
+                                <span>•</span>
+                                <span>Jabatan: {glItem.groupLeader.position}</span>
+                              </p>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <span className="text-[11px] bg-slate-200 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full">
+                                  {glItem.subordinates.length} Subordinat
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Score & Action */}
+                          <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-2 sm:pt-0 border-t sm:border-0 border-slate-200">
+                            <div className="text-left sm:text-right">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                Rerata MER Tim GL
+                              </span>
+                              <span className="text-2xl font-black text-amber-600">
+                                {glItem.avgScore.toFixed(2)}
+                              </span>
+                              <span className={`block text-[10px] font-bold mt-0.5 ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => setSelectedGlNik(glItem.groupLeader.nik)}
+                              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Detail Subordinat Tim</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {/* Subordinate Detail Modal */}
       {activeSubDetail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full p-5 sm:p-6 text-slate-800 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center space-x-3">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-4xl w-full p-3.5 sm:p-6 text-slate-800 shadow-2xl space-y-3 sm:space-y-4 max-h-[92vh] overflow-y-auto overflow-x-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setPhotoViewingEmp(activeSubDetail.subordinate)}
-                  className="relative group/avatar w-11 h-11 rounded-full bg-amber-600 text-white font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                  className="relative group/avatar w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-amber-600 text-white font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
                   title="Klik untuk melihat foto profil besar"
                 >
                   {activeSubDetail.subordinate.photoUrl ? (
@@ -885,28 +929,28 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
                   </div>
                 </button>
 
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-amber-700">
-                    Rincian Evaluasi & Rapor MER Subordinat
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-amber-700 truncate">
+                    Rincian Evaluasi & Rapor MER
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    <strong className="text-slate-800">{activeSubDetail.subordinate.name}</strong> (NIK: {activeSubDetail.subordinate.nik}) • Area Kerja: {activeSubDetail.subordinate.department}
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
+                    <strong className="text-slate-800">{activeSubDetail.subordinate.name}</strong> ({activeSubDetail.subordinate.nik}) • {activeSubDetail.subordinate.department}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedSubNik(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg shrink-0 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Sub Tabs */}
-            <div className="flex border-b border-slate-200 space-x-4">
+            <div className="flex border-b border-slate-200 space-x-3 sm:space-x-4 overflow-x-auto no-scrollbar">
               <button
                 onClick={() => setSubModalTab('ytd')}
-                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                className={`pb-2 text-xs font-bold transition-all border-b-2 shrink-0 ${
                   subModalTab === 'ytd'
                     ? 'border-amber-600 text-amber-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -916,7 +960,7 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
               </button>
               <button
                 onClick={() => setSubModalTab('period')}
-                className={`pb-2 text-xs font-bold transition-all border-b-2 ${
+                className={`pb-2 text-xs font-bold transition-all border-b-2 shrink-0 ${
                   subModalTab === 'period'
                     ? 'border-amber-600 text-amber-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'

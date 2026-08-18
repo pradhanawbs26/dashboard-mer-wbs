@@ -23,6 +23,9 @@ import {
   FileSpreadsheet,
   CalendarRange,
   Maximize2,
+  X,
+  ChevronRight,
+  User,
 } from 'lucide-react';
 import {
   PieChart,
@@ -48,6 +51,7 @@ export const ExecutiveAnalytics: React.FC = () => {
   const [endMonth, setEndMonth] = useState<string>('12');
   const [customYear, setCustomYear] = useState<string>('2026');
   const [selectedYtdSubNik, setSelectedYtdSubNik] = useState<string>('');
+  const [selectedGlForTeamModal, setSelectedGlForTeamModal] = useState<Employee | null>(null);
   const [tableGlFilter, setTableGlFilter] = useState<string>('ALL');
   const [photoViewingEmp, setPhotoViewingEmp] = useState<Employee | null>(null);
 
@@ -420,7 +424,7 @@ export const ExecutiveAnalytics: React.FC = () => {
             <div className="flex items-center space-x-2">
               <PieChartIcon className="w-5 h-5 text-blue-600" />
               <h3 className="font-bold text-base text-slate-800">
-                Persebaran Nilai MER ({currentActiveRangeLabel})
+                Distribusi MER {activeTableYear}
               </h3>
             </div>
             <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-bold">
@@ -525,34 +529,69 @@ export const ExecutiveAnalytics: React.FC = () => {
               return (
                 <div
                   key={item.gl.id}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs"
+                  onClick={() => setSelectedGlForTeamModal(item.gl)}
+                  className="bg-slate-50/80 hover:bg-amber-50/50 border border-slate-200/80 hover:border-amber-300 rounded-xl p-3 flex items-center justify-between text-xs cursor-pointer transition-all duration-150 group shadow-2xs hover:shadow-xs"
+                  title="Klik untuk melihat detail data subordinat tim Group Leader ini"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 font-black text-xs flex items-center justify-center shrink-0">
                       #{idx + 1}
                     </span>
+
+                    {/* GL Profile Photo Trigger */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoViewingEmp(item.gl);
+                      }}
+                      className="relative group/avatar w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                      title="Klik untuk melihat foto profil besar"
+                    >
+                      {item.gl.photoUrl ? (
+                        <img
+                          src={item.gl.photoUrl}
+                          alt={item.gl.name}
+                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                        />
+                      ) : (
+                        item.gl.name.charAt(0)
+                      )}
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Maximize2 className="w-3 h-3" />
+                      </div>
+                    </button>
+
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate">
+                      <p className="font-bold text-slate-900 group-hover:text-amber-900 transition-colors truncate">
                         {item.gl.name}
                       </p>
                       <p className="text-[10px] text-slate-500 truncate">
                         NIK: {item.gl.nik} • Area Kerja: {item.gl.department}
                       </p>
-                      <p className="text-[10px] text-blue-600 font-medium truncate mt-0.5">
-                        Anggota Dievaluasi: {item.evaluatedCount} / {item.totalSubsCount} Subordinat
-                      </p>
+                      <div className="flex items-center space-x-1.5 mt-0.5">
+                        <span className="text-[10px] text-blue-600 font-medium truncate">
+                          {item.evaluatedCount} / {item.totalSubsCount} Subordinat
+                        </span>
+                        <span className="text-[9px] text-amber-700 bg-amber-100/70 px-1.5 py-0.2 rounded font-semibold hidden sm:inline-block">
+                          Lihat Tim →
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 ml-2">
-                    <span className="text-base font-black text-rose-600 block">
-                      {item.avgScore.toFixed(2)}
-                    </span>
-                    <span
-                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
-                    >
-                      {badge.label.split(' ')[0]}
-                    </span>
+                  <div className="text-right shrink-0 ml-2 flex items-center space-x-2">
+                    <div>
+                      <span className="text-base font-black text-rose-600 block leading-tight">
+                        {item.avgScore.toFixed(2)}
+                      </span>
+                      <span
+                        className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                      >
+                        {badge.label.split(' ')[0]}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               );
@@ -589,7 +628,9 @@ export const ExecutiveAnalytics: React.FC = () => {
               return (
                 <div
                   key={item.employee.id}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs hover:border-emerald-200 transition-colors"
+                  onClick={() => setSelectedYtdSubNik(item.employee.nik)}
+                  className="bg-slate-50/80 hover:bg-emerald-50/50 border border-slate-200/80 hover:border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs cursor-pointer transition-all duration-150 group shadow-2xs hover:shadow-xs"
+                  title="Klik untuk melihat rapor & detail evaluasi karyawan ini"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span
@@ -609,7 +650,10 @@ export const ExecutiveAnalytics: React.FC = () => {
                     {/* Employee Profile Photo Trigger */}
                     <button
                       type="button"
-                      onClick={() => setPhotoViewingEmp(item.employee)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoViewingEmp(item.employee);
+                      }}
                       className="relative group/avatar w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-emerald-500 transition-all cursor-pointer"
                       title="Klik untuk melihat foto profil besar"
                     >
@@ -628,7 +672,7 @@ export const ExecutiveAnalytics: React.FC = () => {
                     </button>
 
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate">
+                      <p className="font-bold text-slate-900 group-hover:text-emerald-950 transition-colors truncate">
                         {item.employee.name}
                       </p>
                       <p className="text-[10px] text-slate-500 truncate">
@@ -636,18 +680,24 @@ export const ExecutiveAnalytics: React.FC = () => {
                         {item.employee.equipmentType ? `(${item.employee.equipmentType})` : ''}{' '}
                         • GL: {item.employee.groupLeaderName}
                       </p>
+                      <span className="text-[9px] text-emerald-700 font-semibold inline-block sm:hidden">
+                        Lihat Rapor →
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 ml-2">
-                    <span className="text-base font-black text-emerald-600">
-                      {item.score.toFixed(2)}
-                    </span>
-                    <span
-                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
-                    >
-                      {badge.label.split(' ')[0]}
-                    </span>
+                  <div className="text-right shrink-0 ml-2 flex items-center space-x-2">
+                    <div>
+                      <span className="text-base font-black text-emerald-600 block leading-tight">
+                        {item.score.toFixed(2)}
+                      </span>
+                      <span
+                        className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                      >
+                        {badge.label.split(' ')[0]}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               );
@@ -681,7 +731,9 @@ export const ExecutiveAnalytics: React.FC = () => {
               return (
                 <div
                   key={item.employee.id}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between text-xs hover:border-rose-200 transition-colors"
+                  onClick={() => setSelectedYtdSubNik(item.employee.nik)}
+                  className="bg-slate-50/80 hover:bg-rose-50/50 border border-slate-200/80 hover:border-rose-300 rounded-xl p-3 flex items-center justify-between text-xs cursor-pointer transition-all duration-150 group shadow-2xs hover:shadow-xs"
+                  title="Klik untuk melihat rapor & detail evaluasi karyawan ini"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span className="w-6 h-6 rounded-md bg-rose-100 text-rose-700 font-black text-xs flex items-center justify-center shrink-0">
@@ -691,7 +743,10 @@ export const ExecutiveAnalytics: React.FC = () => {
                     {/* Employee Profile Photo Trigger */}
                     <button
                       type="button"
-                      onClick={() => setPhotoViewingEmp(item.employee)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoViewingEmp(item.employee);
+                      }}
                       className="relative group/avatar w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-rose-500 transition-all cursor-pointer"
                       title="Klik untuk melihat foto profil besar"
                     >
@@ -710,7 +765,7 @@ export const ExecutiveAnalytics: React.FC = () => {
                     </button>
 
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate">
+                      <p className="font-bold text-slate-900 group-hover:text-rose-950 transition-colors truncate">
                         {item.employee.name}
                       </p>
                       <p className="text-[10px] text-slate-500 truncate">
@@ -718,18 +773,24 @@ export const ExecutiveAnalytics: React.FC = () => {
                         {item.employee.equipmentType ? `(${item.employee.equipmentType})` : ''}{' '}
                         • GL: {item.employee.groupLeaderName}
                       </p>
+                      <span className="text-[9px] text-rose-700 font-semibold inline-block sm:hidden">
+                        Lihat Rapor →
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 ml-2">
-                    <span className="text-base font-black text-rose-600">
-                      {item.score.toFixed(2)}
-                    </span>
-                    <span
-                      className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
-                    >
-                      {badge.label.split(' ')[0]}
-                    </span>
+                  <div className="text-right shrink-0 ml-2 flex items-center space-x-2">
+                    <div>
+                      <span className="text-base font-black text-rose-600 block leading-tight">
+                        {item.score.toFixed(2)}
+                      </span>
+                      <span
+                        className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                      >
+                        {badge.label.split(' ')[0]}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               );
@@ -751,11 +812,11 @@ export const ExecutiveAnalytics: React.FC = () => {
             <div className="flex items-center space-x-2">
               <FileSpreadsheet className="w-5 h-5 text-blue-600 shrink-0" />
               <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-                Tabel Rekapitulasi Nilai MER ({activeTableYear})
+                Rekapitulasi MER {activeTableYear}
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rekapitulasi perolehan nilai akhir MER bulanan (Januari - Desember {activeTableYear}) dan Rerata {analyticsMode === 'CUSTOM' ? `Periode (${startMonthObj.name} - ${endMonthObj.name})` : 'YTD'} untuk seluruh anggota subordinat
+              Nilai bulanan dan rerata tahunan seluruh subordinat.
             </p>
           </div>
 
@@ -792,8 +853,94 @@ export const ExecutiveAnalytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Horizontal Table Container */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200/80 shadow-2xl">
+        {/* Mobile-Friendly Subordinate Card List (Visible on Mobile) */}
+        <div className="block md:hidden space-y-2.5">
+          {displayedSubEmployees.map((sub, idx) => {
+            const monthlyScores: (number | null)[] = months.map((m) => {
+              const rep = reports.find(
+                (r) => r.nik === sub.nik && r.period === `${activeTableYear}-${m.code}`
+              );
+              return rep ? rep.finalScore : null;
+            });
+
+            const startCode = parseInt(startMonth, 10);
+            const endCode = parseInt(endMonth, 10);
+            const rangeScores =
+              analyticsMode === 'CUSTOM'
+                ? monthlyScores.filter((s, mIdx) => {
+                    const mNum = mIdx + 1;
+                    return mNum >= startCode && mNum <= endCode && s !== null;
+                  })
+                : monthlyScores.filter((s): s is number => s !== null);
+
+            const calculatedAvg =
+              rangeScores.length > 0
+                ? (rangeScores as number[]).reduce((acc, curr) => acc + curr, 0) / rangeScores.length
+                : 0;
+
+            const badge = getScoreCategoryBadge(calculatedAvg);
+
+            return (
+              <div
+                key={sub.id}
+                onClick={() => setSelectedYtdSubNik(sub.nik)}
+                className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs hover:border-blue-300 transition-all cursor-pointer space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoViewingEmp(sub);
+                      }}
+                      className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs"
+                    >
+                      {sub.photoUrl ? (
+                        <img src={sub.photoUrl} alt={sub.name} className="w-full h-full object-cover" />
+                      ) : (
+                        sub.name.charAt(0)
+                      )}
+                    </button>
+                    <div className="min-w-0">
+                      <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                        {sub.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                        <span className="font-mono bg-slate-100 px-1 py-0.2 rounded font-bold text-slate-700">{sub.nik}</span> • GL: {sub.groupLeaderName || '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-black text-blue-900 block">
+                      {calculatedAvg > 0 ? calculatedAvg.toFixed(2) : '-'}
+                    </span>
+                    <span className={`inline-block text-[8.5px] font-bold px-1.5 py-0.2 rounded ${badge.badgeClass}`}>
+                      {badge.label.split(' ')[0]}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500 font-medium">{sub.category} {sub.equipmentType ? `(${sub.equipmentType})` : ''}</span>
+                  <span className="text-blue-600 font-bold hover:underline flex items-center space-x-0.5">
+                    <span>Lihat Rapor YTD</span>
+                    <span>→</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {displayedSubEmployees.length === 0 && (
+            <div className="text-center py-8 text-slate-400 bg-white border border-slate-200 rounded-xl p-4">
+              <p className="font-bold text-xs text-slate-600">Tidak ada data subordinat untuk filter ini.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Horizontal Table Container (Hidden on Mobile) */}
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80 shadow-2xl">
           <table className="w-full text-left text-xs border-collapse min-w-[1100px]">
             <thead>
               <tr className="bg-slate-900 text-slate-100 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-800">
@@ -934,7 +1081,7 @@ export const ExecutiveAnalytics: React.FC = () => {
                             {score !== null ? (
                               <span
                                 className={
-                                  score >= 3.25
+                                   score >= 3.25
                                     ? 'text-emerald-700'
                                     : score >= 2.5
                                     ? 'text-blue-700'
@@ -966,36 +1113,6 @@ export const ExecutiveAnalytics: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-
-                    {/* Expandable Parameter Detail Row */}
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={17} className="p-4 bg-slate-100/90 border-b-2 border-blue-500">
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                              <h4 className="font-extrabold text-sm text-blue-900 flex items-center space-x-2">
-                                <span>Rapor YTD:</span>
-                                <span className="text-slate-900">{sub.name} (NIK: {sub.nik})</span>
-                              </h4>
-                              <button
-                                onClick={() => setSelectedYtdSubNik('')}
-                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold"
-                              >
-                                Tutup Detail
-                              </button>
-                            </div>
-
-                            <YtdParameterTable
-                              employee={sub}
-                              reports={reports}
-                              operatorParameters={operatorParameters}
-                              nonomParameters={nonomParameters}
-                              selectedYear={activeTableYear}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 );
               })}
@@ -1011,6 +1128,253 @@ export const ExecutiveAnalytics: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Dedicated YTD Report Modal for Selected Employee */}
+      {selectedYtdSubNik && (() => {
+        const selectedEmployee = subEmployees.find((e) => e.nik === selectedYtdSubNik);
+        if (!selectedEmployee) return null;
+        return (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+            onClick={() => setSelectedYtdSubNik('')}
+          >
+            <div
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full p-3.5 sm:p-6 text-slate-800 space-y-3 sm:space-y-4 max-h-[92vh] overflow-y-auto overflow-x-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden">
+                    {selectedEmployee.photoUrl ? (
+                      <img src={selectedEmployee.photoUrl} alt={selectedEmployee.name} className="w-full h-full object-cover" />
+                    ) : (
+                      selectedEmployee.name.charAt(0)
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 truncate">
+                      {selectedEmployee.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 truncate">
+                      NIK: {selectedEmployee.nik} • GL: {selectedEmployee.groupLeaderName || '-'} • {selectedEmployee.category}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedYtdSubNik('')}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <YtdParameterTable
+                employee={selectedEmployee}
+                reports={reports}
+                operatorParameters={operatorParameters}
+                nonomParameters={nonomParameters}
+                selectedYear={activeTableYear}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Group Leader Team Subordinates Modal */}
+      {selectedGlForTeamModal && (() => {
+        const gl = selectedGlForTeamModal;
+        const teamSubs = subEmployees.filter((e) => e.groupLeaderNik === gl.nik);
+        const glStats = glPerformanceList.find((g) => g.gl.nik === gl.nik);
+        const glBadge = glStats ? getScoreCategoryBadge(glStats.avgScore) : null;
+
+        return (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+            onClick={() => setSelectedGlForTeamModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full p-4 sm:p-6 text-slate-800 space-y-4 max-h-[92vh] overflow-y-auto overflow-x-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setPhotoViewingEmp(gl)}
+                    className="relative group/avatar w-11 h-11 rounded-full bg-amber-600 text-white font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-amber-500 transition-all cursor-pointer"
+                    title="Klik untuk melihat foto profil besar"
+                  >
+                    {gl.photoUrl ? (
+                      <img
+                        src={gl.photoUrl}
+                        alt={gl.name}
+                        className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                      />
+                    ) : (
+                      gl.name.charAt(0)
+                    )}
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <Maximize2 className="w-4 h-4" />
+                    </div>
+                  </button>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-extrabold text-base sm:text-lg text-slate-900 truncate">
+                        Tim Subordinat: {gl.name}
+                      </h3>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md shrink-0 hidden sm:inline-block">
+                        Group Leader
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">
+                      NIK: {gl.nik} • Area Kerja: {gl.department} • {teamSubs.length} Anggota Tim
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedGlForTeamModal(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Quick Team Performance Summary */}
+              {glStats && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    <span className="font-bold text-slate-700">Rerata Performa Tim ({currentActiveRangeLabel}):</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg font-black text-blue-600">
+                      {glStats.avgScore.toFixed(2)}
+                    </span>
+                    {glBadge && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${glBadge.badgeClass}`}>
+                        {glBadge.label}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      ({glStats.evaluatedCount}/{glStats.totalSubsCount} Dievaluasi)
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Subordinates List */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Daftar Anggota Tim ({teamSubs.length} Orang):</span>
+                  <span className="text-[11px] text-slate-400 font-normal">Klik anggota untuk melihat Rapor YTD lengkap</span>
+                </p>
+
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                  {teamSubs.map((sub, idx) => {
+                    const subScoreObj = filteredScores.find((s) => s.employee.nik === sub.nik);
+                    const subScore = subScoreObj ? subScoreObj.score : 0;
+                    const hasReport = subScoreObj ? subScoreObj.hasReport : false;
+                    const badge = getScoreCategoryBadge(subScore);
+
+                    return (
+                      <div
+                        key={sub.id}
+                        onClick={() => {
+                          setSelectedGlForTeamModal(null);
+                          setSelectedYtdSubNik(sub.nik);
+                        }}
+                        className="bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-xl p-3 flex items-center justify-between text-xs cursor-pointer transition-all duration-150 group shadow-2xs hover:shadow-xs"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 font-bold text-[11px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPhotoViewingEmp(sub);
+                            }}
+                            className="relative group/subAvatar w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-2xs hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
+                            title="Klik untuk melihat foto profil besar"
+                          >
+                            {sub.photoUrl ? (
+                              <img
+                                src={sub.photoUrl}
+                                alt={sub.name}
+                                className="w-full h-full object-cover group-hover/subAvatar:scale-110 transition-transform"
+                              />
+                            ) : (
+                              sub.name.charAt(0)
+                            )}
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/subAvatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="w-3 h-3" />
+                            </div>
+                          </button>
+
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                              {sub.name}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              NIK: {sub.nik} • {sub.category} {sub.equipmentType ? `(${sub.equipmentType})` : ''} • {sub.department}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0 ml-2 flex items-center space-x-2">
+                          <div>
+                            {hasReport ? (
+                              <>
+                                <span className="text-sm font-black text-slate-900 block leading-tight">
+                                  {subScore.toFixed(2)}
+                                </span>
+                                <span
+                                  className={`block text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.badgeClass}`}
+                                >
+                                  {badge.label.split(' ')[0]}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 px-2 py-0.5 rounded">
+                                Belum dinilai
+                              </span>
+                            )}
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {teamSubs.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl">
+                      <User className="w-8 h-8 mx-auto text-slate-300 mb-1" />
+                      <p className="font-semibold text-slate-600">Belum ada data anggota tim terdaftar</p>
+                      <p className="text-xs text-slate-400">Tidak ada subordinat yang terkait dengan Group Leader ini.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Klik anggota tim mana saja untuk membuka Rapor YTD detailnya.</span>
+                <button
+                  onClick={() => setSelectedGlForTeamModal(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Profile Photo Viewer Popup */}
       <PhotoViewerModal

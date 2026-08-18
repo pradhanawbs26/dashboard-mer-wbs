@@ -28,6 +28,7 @@ import {
   Settings,
   UserCheck,
   Maximize2,
+  LogOut,
 } from 'lucide-react';
 import {
   LineChart,
@@ -53,6 +54,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
     nonomParameters,
     meritRules,
     demeritRules,
+    logout,
   } = useApp();
 
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -566,18 +568,9 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
             <div>
               <h3 className="text-xl font-extrabold text-slate-900">
-                Profil Karyawan Batubara
+                Profil Karyawan
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Informasi akun dan struktur organisasi</p>
             </div>
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="flex items-center space-x-1.5 glass-button text-slate-700 font-bold text-xs px-4 py-2 rounded-full shadow-2xs transition-all cursor-pointer hover:text-[#b42907]"
-              title="Pengaturan Foto Profil & Password Akun"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>Pengaturan Akun</span>
-            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="bg-white/80 p-4 rounded-2xl border border-white/90 shadow-2xs">
@@ -627,17 +620,28 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
               </p>
             </div>
           </div>
+
+          {/* Logout Button in Profile Tab */}
+          <div className="pt-4 border-t border-slate-200/80 flex justify-end">
+            <button
+              onClick={logout}
+              className="flex items-center space-x-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Keluar dari Akun (Logout)</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* Print/Download Modal View */}
       {showPrintModal && currentReport && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="glass-panel bg-white/90 backdrop-blur-2xl text-slate-900 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-white/80 max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:static print:bg-white print:z-auto">
+          <div className="glass-panel bg-white/90 backdrop-blur-2xl text-slate-900 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-white/80 max-h-[95vh] overflow-y-auto print:max-h-none print:h-auto print:overflow-visible print:border-[1.5px] print:border-slate-900 print:rounded-none print:shadow-none print:p-5 print:w-full print:max-w-none mer-print-page printable-mer-card">
             {/* Header Title */}
-            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b-2 border-slate-900/10 pb-4">
+            <header className="mer-print-header flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b-2 border-slate-900/10 pb-4 print:border-slate-900 print:pb-2.5">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-sm border border-slate-100">
+                <div className="w-12 h-12 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-sm border border-slate-100 print:border-slate-300">
                   <img
                     src="https://res.cloudinary.com/dgjnlxf69/image/upload/v1786941816/Logo_MER_02_wmtlnu.png"
                     alt="Logo MER"
@@ -654,7 +658,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
                   </p>
                 </div>
               </div>
-              <div className="glass-panel px-4 sm:px-5 py-2 rounded-full border border-white/80 bg-white/70 shadow-2xs">
+              <div className="glass-panel px-4 sm:px-5 py-2 rounded-full border border-white/80 bg-white/70 shadow-2xs print:bg-slate-100 print:border-slate-300">
                 <span className="font-label-caps text-xs font-black uppercase text-[#b42907] tracking-widest font-mono">
                   PERIODE: {formatPeriodLabel(selectedPeriod).toUpperCase()}
                 </span>
@@ -662,7 +666,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
             </header>
 
             {/* Employee Profile Details */}
-            <section className="glass-panel p-4 sm:p-5 rounded-2xl bg-white/60 border border-white/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 shadow-2xs">
+            <section className="glass-panel p-4 sm:p-5 rounded-2xl bg-white/60 border border-white/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 shadow-2xs print:p-2.5 print:rounded-none print:border-slate-300 print:bg-slate-50">
               <div className="flex flex-col gap-0.5">
                 <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   NAMA KARYAWAN:
@@ -697,10 +701,10 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="font-label-caps text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  KATEGORI / ALAT:
+                  KATEGORI:
                 </span>
                 <span className="font-body-lg text-xs sm:text-sm text-slate-800 font-semibold truncate">
-                  {currentUser.category} {currentUser.equipmentType ? `(${currentUser.equipmentType})` : ''}
+                  {currentUser.category}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
@@ -755,18 +759,18 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
             </section>
 
             {/* Performance Table */}
-            <section className="glass-panel rounded-2xl overflow-hidden border border-white/80 shadow-2xs">
+            <section className="glass-panel rounded-2xl overflow-hidden border border-white/80 shadow-2xs print:rounded-none print:border-slate-300">
               <div className="overflow-x-auto">
                 <table className="w-full text-left glass-table text-xs">
                   <thead>
-                    <tr className="bg-white/70 backdrop-blur-md border-b border-slate-200/60">
+                    <tr className="bg-white/70 backdrop-blur-md border-b border-slate-200/60 print:bg-slate-200 print:border-slate-300">
                       <th className="p-3 font-semibold text-slate-900">Parameter Performance</th>
                       <th className="p-3 font-semibold text-slate-900 text-center w-16">Bobot</th>
                       <th className="p-3 font-semibold text-slate-900 text-center w-20">Nilai (1-4)</th>
                       <th className="p-3 font-semibold text-slate-900">Kriteria Terpenuhi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200/40 text-xs">
+                  <tbody className="divide-y divide-slate-200/40 print:divide-slate-300 text-xs">
                     {parameters.map((p, pIdx) => {
                       const val = currentReport.scores[p.id] || 0;
                       const scoreColor =
@@ -779,14 +783,14 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
                         <tr
                           key={p.id}
                           className={`hover:bg-white/40 transition-colors ${
-                            pIdx % 2 === 1 ? 'bg-white/20' : ''
+                            pIdx % 2 === 1 ? 'bg-white/20 print:bg-slate-50' : ''
                           }`}
                         >
                           <td className="p-2.5 sm:p-3 font-semibold text-slate-900">{p.name}</td>
                           <td className="p-2.5 sm:p-3 text-center text-slate-600 font-medium font-mono">
                             {p.weight}%
                           </td>
-                          <td className={`p-2.5 sm:p-3 text-center font-bold text-sm ${scoreColor} font-mono`}>
+                          <td className={`p-2.5 sm:p-3 text-center font-bold text-sm ${scoreColor} print:text-slate-900 font-mono`}>
                             {val}
                           </td>
                           <td className="p-2.5 sm:p-3 text-slate-600 text-[11px] sm:text-xs leading-relaxed">
@@ -802,7 +806,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
 
             {/* Merit / Demerit Notes (If any) */}
             {(currentReport.meritNotes || currentReport.demeritNotes) && (
-              <div className="glass-panel p-3 rounded-xl border border-white/80 text-[11px] text-slate-700 space-y-1">
+              <div className="glass-panel p-3 rounded-xl border border-white/80 text-[11px] text-slate-700 space-y-1 print:bg-white print:border-slate-300 print:rounded-none">
                 {currentReport.meritNotes && (
                   <p>
                     <strong className="text-emerald-700">Catatan Merit (+{currentReport.meritPoint}):</strong>{' '}
@@ -819,15 +823,12 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
             )}
 
             {/* Bottom Signatures Section */}
-            <section className="mt-6 flex flex-row justify-around items-center gap-8 sm:gap-12 pt-4 border-t-2 border-slate-900/10">
+            <section className="mt-6 flex flex-row justify-around items-center gap-8 sm:gap-12 pt-4 border-t-2 border-slate-900/10 print:border-slate-900 print:pt-3">
               <div className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-xs text-center">
                 <span className="text-xs font-semibold text-slate-600">
                   Disetujui Oleh (Group Leader):
                 </span>
                 <div className="h-16 w-full flex items-center justify-center border-b border-slate-400/60 relative">
-                  <span className="font-status-mono text-[10px] text-slate-400 opacity-30 italic absolute">
-                    Waiting for signature...
-                  </span>
                 </div>
                 <div className="text-center w-full">
                   <p className="text-sm font-extrabold text-slate-900">
@@ -844,9 +845,6 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
                   Penerima Laporan (Karyawan):
                 </span>
                 <div className="h-16 w-full flex items-center justify-center border-b border-slate-400/60 relative">
-                  <span className="font-status-mono text-[10px] text-slate-400 opacity-30 italic absolute">
-                    Waiting for signature...
-                  </span>
                 </div>
                 <div className="text-center w-full">
                   <p className="text-sm font-extrabold text-slate-900">
@@ -860,7 +858,7 @@ export const SubordinateView: React.FC<SubordinateViewProps> = ({ activeTab = 'r
             </section>
 
             {/* Modal Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200/80">
+            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200/80 print:hidden">
               <button
                 onClick={() => window.print()}
                 className="bg-gradient-to-r from-[#b42907] to-[#d4380d] hover:opacity-95 text-white font-extrabold text-xs px-5 py-2.5 rounded-full flex items-center space-x-1.5 shadow-md cursor-pointer transition-all active:scale-95"
