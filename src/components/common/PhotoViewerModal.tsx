@@ -46,11 +46,11 @@ export const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({ employee, on
 
   return (
     <div 
-      className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-white/40 text-slate-800 relative space-y-0 transform transition-all animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-white/40 text-slate-800 relative space-y-0 transform transition-all my-auto max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar with Close Button */}

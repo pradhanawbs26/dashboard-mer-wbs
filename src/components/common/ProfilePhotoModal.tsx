@@ -73,19 +73,19 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 text-slate-800 shadow-2xl relative space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 overflow-y-auto p-3 sm:p-4 flex items-center justify-center">
+      <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-4 sm:p-6 text-slate-800 shadow-2xl relative space-y-4 sm:space-y-5 my-auto max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in zoom-in duration-200">
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+          <div className="flex items-center space-x-2 min-w-0">
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl shrink-0">
               <Camera className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-extrabold text-base text-slate-900">
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 truncate">
                 Upload Foto Profil
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 truncate">
                 {currentUser.name} • {currentUser.nik}
               </p>
             </div>
@@ -93,7 +93,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({ isOpen, on
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer shrink-0 ml-2"
           >
             <X className="w-5 h-5" />
           </button>

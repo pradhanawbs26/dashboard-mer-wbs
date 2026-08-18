@@ -7,11 +7,14 @@ import { GroupLeaderView } from './components/groupLeader/GroupLeaderView';
 import { HeadCoachView } from './components/headCoach/HeadCoachView';
 import { AdminView } from './components/admin/AdminView';
 import { LoginModal } from './components/LoginModal';
+import { AccountSettingsPage } from './components/common/AccountSettingsPage';
 
 const MainLayout: React.FC = () => {
   const { currentUser } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>('report');
+  const [previousTab, setPreviousTab] = useState<string>('report');
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'password' | 'photo'>('password');
 
   // Set favicon and title dynamically
   useEffect(() => {
@@ -34,12 +37,33 @@ const MainLayout: React.FC = () => {
     if (!currentUser) return;
     if (currentUser.role === 'subordinate') {
       setActiveTab('report');
+      setPreviousTab('report');
     } else if (currentUser.role === 'group_leader' || currentUser.role === 'head_coach') {
       setActiveTab('team_dashboard');
+      setPreviousTab('team_dashboard');
     } else if (currentUser.role === 'admin') {
       setActiveTab('analytics');
+      setPreviousTab('analytics');
     }
   }, [currentUser?.role]);
+
+  const handleOpenSettings = (tab: 'password' | 'photo' = 'password') => {
+    if (activeTab !== 'settings') {
+      setPreviousTab(activeTab);
+    }
+    setSettingsInitialTab(tab);
+    setActiveTab('settings');
+  };
+
+  const handleBackFromSettings = () => {
+    const defaultFallback =
+      currentUser?.role === 'subordinate'
+        ? 'report'
+        : currentUser?.role === 'admin'
+        ? 'analytics'
+        : 'team_dashboard';
+    setActiveTab(previousTab && previousTab !== 'settings' ? previousTab : defaultFallback);
+  };
 
   if (!currentUser) {
     return <LoginModal />;
@@ -48,24 +72,33 @@ const MainLayout: React.FC = () => {
   return (
     <div className="mesh-bg min-h-screen text-slate-800 flex flex-col font-sans selection:bg-[#b42907] selection:text-white print:min-h-0 print:bg-white print:p-0">
       {/* Sticky Top Header */}
-      <Header />
+      <Header onOpenSettings={handleOpenSettings} />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-28 print:p-0 print:m-0 print:max-w-none print:w-full print:pb-0">
-        {currentUser.role === 'subordinate' && (
-          <SubordinateView activeTab={activeTab} />
-        )}
+        {activeTab === 'settings' ? (
+          <AccountSettingsPage
+            initialTab={settingsInitialTab}
+            onBack={handleBackFromSettings}
+          />
+        ) : (
+          <>
+            {currentUser.role === 'subordinate' && (
+              <SubordinateView activeTab={activeTab} />
+            )}
 
-        {currentUser.role === 'group_leader' && (
-          <GroupLeaderView activeTab={activeTab} />
-        )}
+            {currentUser.role === 'group_leader' && (
+              <GroupLeaderView activeTab={activeTab} />
+            )}
 
-        {currentUser.role === 'head_coach' && (
-          <HeadCoachView activeTab={activeTab} />
-        )}
+            {currentUser.role === 'head_coach' && (
+              <HeadCoachView activeTab={activeTab} />
+            )}
 
-        {currentUser.role === 'admin' && (
-          <AdminView activeTab={activeTab} setActiveTab={setActiveTab} />
+            {currentUser.role === 'admin' && (
+              <AdminView activeTab={activeTab} setActiveTab={setActiveTab} />
+            )}
+          </>
         )}
 
         {/* Global Page Footer */}

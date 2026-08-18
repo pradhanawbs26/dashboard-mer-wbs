@@ -127,8 +127,8 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
   if (!isOpen || !imageSrc) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-white/40 text-slate-800 space-y-0">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-white/40 text-slate-800 space-y-0 my-auto max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         {/* Header */}
         <div className="bg-slate-900 px-5 py-4 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">

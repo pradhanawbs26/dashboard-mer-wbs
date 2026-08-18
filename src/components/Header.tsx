@@ -13,7 +13,11 @@ import {
   Building,
 } from 'lucide-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenSettings?: (tab: 'password' | 'photo') => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const {
     currentUser,
     selectedPeriod,
@@ -226,8 +230,12 @@ export const Header: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsDropdownOpen(false);
-                          setSettingsTab('photo');
-                          setShowSettingsModal(true);
+                          if (onOpenSettings) {
+                            onOpenSettings('photo');
+                          } else {
+                            setSettingsTab('photo');
+                            setShowSettingsModal(true);
+                          }
                         }}
                         className="w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:text-[#00668a] hover:bg-slate-100 rounded-xl transition-all text-left cursor-pointer"
                       >
@@ -242,8 +250,12 @@ export const Header: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setIsDropdownOpen(false);
-                        setSettingsTab('password');
-                        setShowSettingsModal(true);
+                        if (onOpenSettings) {
+                          onOpenSettings('password');
+                        } else {
+                          setSettingsTab('password');
+                          setShowSettingsModal(true);
+                        }
                       }}
                       className="w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:text-[#00668a] hover:bg-slate-100 rounded-xl transition-all text-left cursor-pointer"
                     >
