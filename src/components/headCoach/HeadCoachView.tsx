@@ -365,17 +365,6 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
               })}
             </div>
           </div>
-
-          {/* Logout Button */}
-          <div className="pt-4 border-t border-slate-200/80 flex justify-end">
-            <button
-              onClick={logout}
-              className="flex items-center space-x-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Keluar dari Akun (Logout)</span>
-            </button>
-          </div>
         </div>
       )}
 
@@ -511,7 +500,7 @@ export const HeadCoachView: React.FC<HeadCoachViewProps> = ({ activeTab = 'team_
       )}
 
       {/* Tab: Dashboard Tim Head Coach */}
-      {(activeTab === 'team_dashboard' || (activeTab !== 'profile' && activeTab !== 'ytd_report')) && (
+      {activeTab === 'team_dashboard' && (
         <>
           {activeGlDetail ? (
             /* Sub-page: Detail Subordinat Tim Group Leader */

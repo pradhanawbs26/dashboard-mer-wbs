@@ -273,11 +273,6 @@ export const AdminPrintReport: React.FC = () => {
                 <>
                   Siap mencetak <strong>{evaluatedEmployees.length} dari {targetEmployees.length} Rapor MER anggota tim</strong> di bawah Group Leader{' '}
                   <strong className="underline">{activeGL?.name}</strong> (Periode {formatPeriodLabel(printPeriod)}).
-                  {unEvaluatedEmployees.length > 0 && (
-                    <span className="text-amber-700 font-semibold ml-1">
-                      ({unEvaluatedEmployees.length} belum diinput)
-                    </span>
-                  )}
                 </>
               )}
             </span>
@@ -290,28 +285,6 @@ export const AdminPrintReport: React.FC = () => {
 
       {/* Printable Area - List of Report Cards */}
       <div className="space-y-8 print:space-y-0 mer-print-container">
-        {/* Un-evaluated warning banners (Visible on screen, hidden in print) */}
-        {unEvaluatedEmployees.length > 0 && (
-          <div className="print:hidden space-y-3">
-            {unEvaluatedEmployees.map((emp) => (
-              <div
-                key={emp.id}
-                className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-center space-x-3"
-              >
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                <div>
-                  <p className="font-bold text-slate-900">
-                    Laporan Belum Diinput: {emp.name} (NIK: {emp.nik})
-                  </p>
-                  <p className="text-slate-600 text-[11px]">
-                    Evaluasi bulan {formatPeriodLabel(printPeriod)} belum diinput oleh Group Leader ({emp.groupLeaderName || activeGL?.name || 'Ahmad Hidayat'}).
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Evaluated Report Pages */}
         {evaluatedEmployees.map((emp, index) => {
           const rep = reports.find(

@@ -454,7 +454,7 @@ export const AccountSettingsPage: React.FC<AccountSettingsPageProps> = ({
                   <span>Upload Foto dari Perangkat (Galeri / Kamera)</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Format gambar JPG, PNG, atau WEBP (Maksimal 8MB). Sistem menyediakan alat pemotong foto otomatis agar proporsional.
+                  Format gambar JPG, PNG, atau WEBP (Maksimal 8MB).
                 </p>
 
                 <input
