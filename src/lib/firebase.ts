@@ -10,6 +10,13 @@ import {
   setDoc,
   deleteDoc,
   writeBatch,
+  query,
+  where,
+  limit,
+  orderBy,
+  startAfter,
+  QueryConstraint,
+  DocumentSnapshot,
 } from 'firebase/firestore';
 import { Employee, MonthlyReport, DynamicParameter, MeritRule, DemeritRule } from '../types';
 
@@ -102,12 +109,80 @@ export const cleanForFirestore = <T extends Record<string, any>>(obj: T): T => {
   return cleaned as T;
 };
 
-// Firestore Sync Helpers
-export const fetchEmployeesFromFirebase = async (): Promise<Employee[] | null> => {
+// -------------------------------------------------------------
+// Lightweight Firestore Rate Monitor & Early Alerting
+// -------------------------------------------------------------
+interface FirestoreStats {
+  totalReads: number;
+  totalWrites: number;
+  recentReadTimestamps: number[];
+}
+
+const stats: FirestoreStats = {
+  totalReads: 0,
+  totalWrites: 0,
+  recentReadTimestamps: [],
+};
+
+const MONITOR_WINDOW_MS = 10000; // 10 seconds
+const RATE_LIMIT_THRESHOLD = 8;  // Alert if more than 8 reads in 10s
+
+export const recordFirestoreRead = (operationName: string) => {
+  const now = Date.now();
+  stats.totalReads++;
+  stats.recentReadTimestamps.push(now);
+
+  // Filter timestamps outside the sliding window
+  stats.recentReadTimestamps = stats.recentReadTimestamps.filter(
+    (t) => now - t <= MONITOR_WINDOW_MS
+  );
+
+  if (stats.recentReadTimestamps.length > RATE_LIMIT_THRESHOLD) {
+    console.warn(
+      `⚠️ [FIRESTORE MONITOR ALERT] High frequency of read operations detected! (${stats.recentReadTimestamps.length} queries within 10s during '${operationName}'). Verify that component useEffects and sync triggers are guarded against loops.`
+    );
+  }
+};
+
+export const recordFirestoreWrite = (operationName: string, count: number = 1) => {
+  stats.totalWrites += count;
+};
+
+export const getFirestoreStats = () => ({
+  totalReads: stats.totalReads,
+  totalWrites: stats.totalWrites,
+  recentReadsIn10s: stats.recentReadTimestamps.length,
+});
+
+// -------------------------------------------------------------
+// Firestore Sync Helpers with Pagination & Scoped Queries (limit/where)
+// -------------------------------------------------------------
+export interface FetchEmployeesOptions {
+  role?: string;
+  groupLeaderId?: string;
+  limitCount?: number;
+}
+
+export const fetchEmployeesFromFirebase = async (
+  options?: FetchEmployeesOptions
+): Promise<Employee[] | null> => {
   const db = getDb();
   if (!db) return null;
+  recordFirestoreRead('fetchEmployees');
+
   try {
-    const snapshot = await getDocs(collection(db, 'employees'));
+    const constraints: QueryConstraint[] = [];
+    if (options?.role) {
+      constraints.push(where('role', '==', options.role));
+    }
+    if (options?.groupLeaderId) {
+      constraints.push(where('groupLeaderId', '==', options.groupLeaderId));
+    }
+    // Apply safe default limit to avoid uncontrolled batch scans
+    constraints.push(limit(options?.limitCount || 500));
+
+    const q = query(collection(db, 'employees'), ...constraints);
+    const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return snapshot.docs.map((d) => d.data() as Employee);
   } catch (err) {
@@ -122,6 +197,7 @@ export const saveEmployeeToFirebase = async (employee: Employee): Promise<boolea
   try {
     const sanitized = cleanForFirestore(employee);
     await setDoc(doc(db, 'employees', employee.id), sanitized);
+    recordFirestoreWrite('saveEmployee', 1);
     return true;
   } catch (err) {
     console.error('Failed to save employee to Firebase:', err);
@@ -134,6 +210,7 @@ export const deleteEmployeeFromFirebase = async (employeeId: string): Promise<bo
   if (!db) return false;
   try {
     await deleteDoc(doc(db, 'employees', employeeId));
+    recordFirestoreWrite('deleteEmployee', 1);
     return true;
   } catch (err) {
     console.error('Failed to delete employee from Firebase:', err);
@@ -155,6 +232,7 @@ export const saveBulkEmployeesToFirebase = async (employees: Employee[]): Promis
         batch.set(doc(db, 'employees', emp.id), sanitized);
       });
       await batch.commit();
+      recordFirestoreWrite('saveBulkEmployees', chunk.length);
     }
     return true;
   } catch (err) {
@@ -163,16 +241,71 @@ export const saveBulkEmployeesToFirebase = async (employees: Employee[]): Promis
   }
 };
 
-export const fetchReportsFromFirebase = async (): Promise<MonthlyReport[] | null> => {
+export interface FetchReportsOptions {
+  period?: string;
+  nik?: string;
+  limitCount?: number;
+}
+
+export const fetchReportsFromFirebase = async (
+  options?: FetchReportsOptions
+): Promise<MonthlyReport[] | null> => {
   const db = getDb();
   if (!db) return null;
+  recordFirestoreRead('fetchReports');
+
   try {
-    const snapshot = await getDocs(collection(db, 'reports'));
+    const constraints: QueryConstraint[] = [];
+    if (options?.period) {
+      constraints.push(where('period', '==', options.period));
+    }
+    if (options?.nik) {
+      constraints.push(where('nik', '==', options.nik));
+    }
+    // Cap results with limit() to prevent high document reads
+    constraints.push(limit(options?.limitCount || 500));
+
+    const q = query(collection(db, 'reports'), ...constraints);
+    const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return snapshot.docs.map((d) => d.data() as MonthlyReport);
   } catch (err) {
     console.error('Failed to fetch reports from Firebase:', err);
     return null;
+  }
+};
+
+/**
+ * Paginated reports query with cursor (startAfter)
+ */
+export const fetchReportsPagedFromFirebase = async (
+  pageSize: number = 50,
+  lastDocSnapshot?: DocumentSnapshot
+): Promise<{ reports: MonthlyReport[]; lastDoc: DocumentSnapshot | null }> => {
+  const db = getDb();
+  if (!db) return { reports: [], lastDoc: null };
+  recordFirestoreRead('fetchReportsPaged');
+
+  try {
+    const constraints: QueryConstraint[] = [orderBy('period', 'desc'), limit(pageSize)];
+    if (lastDocSnapshot) {
+      constraints.push(startAfter(lastDocSnapshot));
+    }
+
+    const q = query(collection(db, 'reports'), ...constraints);
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { reports: [], lastDoc: null };
+    }
+
+    const reports = snapshot.docs.map((d) => d.data() as MonthlyReport);
+    const lastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    return { reports, lastDoc };
+  } catch (err) {
+    console.error('Failed to fetch paged reports from Firebase:', err);
+    return { reports: [], lastDoc: null };
   }
 };
 
@@ -182,6 +315,7 @@ export const saveReportToFirebase = async (report: MonthlyReport): Promise<boole
   try {
     const sanitized = cleanForFirestore(report);
     await setDoc(doc(db, 'reports', report.id), sanitized);
+    recordFirestoreWrite('saveReport', 1);
     return true;
   } catch (err) {
     console.error('Failed to save report to Firebase:', err);
@@ -194,6 +328,7 @@ export const deleteReportFromFirebase = async (reportId: string): Promise<boolea
   if (!db) return false;
   try {
     await deleteDoc(doc(db, 'reports', reportId));
+    recordFirestoreWrite('deleteReport', 1);
     return true;
   } catch (err) {
     console.error('Failed to delete report from Firebase:', err);
@@ -214,6 +349,7 @@ export const saveBulkReportsToFirebase = async (reports: MonthlyReport[]): Promi
         batch.set(doc(db, 'reports', rep.id), sanitized);
       });
       await batch.commit();
+      recordFirestoreWrite('saveBulkReports', chunk.length);
     }
     return true;
   } catch (err) {
@@ -230,6 +366,8 @@ export const fetchSettingsFromFirebase = async (): Promise<{
 } | null> => {
   const db = getDb();
   if (!db) return null;
+  recordFirestoreRead('fetchSettings');
+
   try {
     const snapshot = await getDocs(collection(db, 'settings'));
     if (snapshot.empty) return null;
@@ -249,6 +387,7 @@ export const saveSettingToFirebase = async (key: string, data: any): Promise<boo
   if (!db) return false;
   try {
     await setDoc(doc(db, 'settings', key), { data, updatedAt: new Date().toISOString() });
+    recordFirestoreWrite('saveSetting', 1);
     return true;
   } catch (err) {
     console.error(`Failed to save setting ${key} to Firebase:`, err);

@@ -177,32 +177,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsSyncingFirebase(true);
 
     try {
-      const [fbEmps, fbReports, fbSettings] = await Promise.all([
-        fetchEmployeesFromFirebase(),
-        fetchReportsFromFirebase(),
-        fetchSettingsFromFirebase(),
-      ]);
+      let fbEmps: Employee[] | null = null;
+      let fbReports: MonthlyReport[] | null = null;
 
-      if (fbEmps && fbEmps.length > 0) {
-        setEmployees(fbEmps);
-      }
+      // Scoped querying based on user role to avoid unnecessary document reads
+      if (currentUser?.role === 'subordinate') {
+        // Subordinates only need their own reports (e.g. up to 24 months) and base settings
+        const [subReports, fbSettings] = await Promise.all([
+          fetchReportsFromFirebase({ nik: currentUser.nik, limitCount: 24 }),
+          fetchSettingsFromFirebase(),
+        ]);
+        fbReports = subReports;
 
-      if (fbReports && fbReports.length > 0) {
-        setReports(fbReports);
-      }
+        if (fbReports && fbReports.length > 0) {
+          setReports((prev) => {
+            const map = new Map(prev.map((r) => [r.id || `${r.nik}_${r.period}`, r]));
+            fbReports?.forEach((r) => map.set(r.id || `${r.nik}_${r.period}`, r));
+            return Array.from(map.values());
+          });
+        }
 
-      if (fbSettings) {
-        if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
-          setOperatorParameters(fbSettings.operatorParameters);
+        if (fbSettings) {
+          if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
+            setOperatorParameters(fbSettings.operatorParameters);
+          }
+          if (fbSettings.nonomParameters && Array.isArray(fbSettings.nonomParameters)) {
+            setNonomParameters(fbSettings.nonomParameters);
+          }
+          if (fbSettings.meritRules && Array.isArray(fbSettings.meritRules)) {
+            setMeritRules(fbSettings.meritRules);
+          }
+          if (fbSettings.demeritRules && Array.isArray(fbSettings.demeritRules)) {
+            setDemeritRules(fbSettings.demeritRules);
+          }
         }
-        if (fbSettings.nonomParameters && Array.isArray(fbSettings.nonomParameters)) {
-          setNonomParameters(fbSettings.nonomParameters);
+      } else {
+        // Admin, Head Coach, or Group Leader: Fetch within bounded limits
+        const [emps, reps, fbSettings] = await Promise.all([
+          fetchEmployeesFromFirebase({ limitCount: 300 }),
+          fetchReportsFromFirebase({ limitCount: 400 }),
+          fetchSettingsFromFirebase(),
+        ]);
+        fbEmps = emps;
+        fbReports = reps;
+
+        if (fbEmps && fbEmps.length > 0) {
+          setEmployees(fbEmps);
         }
-        if (fbSettings.meritRules && Array.isArray(fbSettings.meritRules)) {
-          setMeritRules(fbSettings.meritRules);
+
+        if (fbReports && fbReports.length > 0) {
+          setReports(fbReports);
         }
-        if (fbSettings.demeritRules && Array.isArray(fbSettings.demeritRules)) {
-          setDemeritRules(fbSettings.demeritRules);
+
+        if (fbSettings) {
+          if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
+            setOperatorParameters(fbSettings.operatorParameters);
+          }
+          if (fbSettings.nonomParameters && Array.isArray(fbSettings.nonomParameters)) {
+            setNonomParameters(fbSettings.nonomParameters);
+          }
+          if (fbSettings.meritRules && Array.isArray(fbSettings.meritRules)) {
+            setMeritRules(fbSettings.meritRules);
+          }
+          if (fbSettings.demeritRules && Array.isArray(fbSettings.demeritRules)) {
+            setDemeritRules(fbSettings.demeritRules);
+          }
         }
       }
 
