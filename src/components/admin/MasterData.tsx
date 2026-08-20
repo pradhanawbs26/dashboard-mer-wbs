@@ -42,6 +42,7 @@ export const MasterData: React.FC = () => {
     bulkImportEmployees,
     isSyncingFirebase,
     syncAllDataToFirebase,
+    refreshFromFirebase,
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -522,14 +523,32 @@ export const MasterData: React.FC = () => {
                 ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                 : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 cursor-pointer'
             } border font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center space-x-2 transition-all`}
-            title="Sinkronkan seluruh data karyawan saat ini ke database Firebase Firestore"
+            title="Kirim dan simpan seluruh data lokal saat ini ke database Firebase Firestore"
           >
             {isSyncingFirebase ? (
               <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
             ) : (
               <Cloud className="w-4 h-4 text-indigo-600" />
             )}
-            <span>{isSyncingFirebase ? 'Menyinkronkan...' : 'Sinkron ke Cloud (Firebase)'}</span>
+            <span>{isSyncingFirebase ? 'Menyinkronkan...' : 'Kirim ke Cloud'}</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              setSyncStatusMsg(null);
+              await refreshFromFirebase(true);
+              setSyncStatusMsg({
+                type: 'success',
+                text: 'Berhasil memuat data terbaru dari Cloud Firestore',
+              });
+              setTimeout(() => setSyncStatusMsg(null), 7000);
+            }}
+            disabled={isSyncingFirebase}
+            className="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
+            title="Tarik data terbaru dari database Firebase Firestore"
+          >
+            <RefreshCw className={`w-4 h-4 text-sky-600 ${isSyncingFirebase ? 'animate-spin' : ''}`} />
+            <span>Tarik dari Cloud</span>
           </button>
 
           <button

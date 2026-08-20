@@ -45,29 +45,37 @@ export const AdminPrintReport: React.FC = () => {
   const isHC = currentUser?.role === 'head_coach';
 
   // Group leaders in scope
-  const allGroupLeaders = employees.filter((e) => e.role === 'group_leader');
-  const groupLeaders = isGL
-    ? allGroupLeaders.filter((gl) => gl.nik === currentUser?.nik || gl.id === currentUser?.id)
-    : isHC
-    ? allGroupLeaders.filter(
+  const groupLeaders = React.useMemo(() => {
+    const allGroupLeaders = employees.filter((e) => e.role === 'group_leader');
+    if (isGL) {
+      return allGroupLeaders.filter((gl) => gl.nik === currentUser?.nik || gl.id === currentUser?.id);
+    }
+    if (isHC) {
+      return allGroupLeaders.filter(
         (gl) =>
           gl.groupLeaderId === currentUser?.nik ||
           gl.groupLeaderId === currentUser?.id ||
           gl.groupLeaderName === currentUser?.name
-      )
-    : allGroupLeaders;
+      );
+    }
+    return allGroupLeaders;
+  }, [employees, isGL, isHC, currentUser?.nik, currentUser?.id, currentUser?.name]);
 
   // Subordinates in scope
-  const allSubordinates = employees.filter((e) => e.role === 'subordinate');
-  const subordinates = isGL
-    ? allSubordinates.filter(
+  const subordinates = React.useMemo(() => {
+    const allSubordinates = employees.filter((e) => e.role === 'subordinate');
+    if (isGL) {
+      return allSubordinates.filter(
         (s) => s.groupLeaderId === currentUser?.nik || s.groupLeaderName === currentUser?.name
-      )
-    : isHC
-    ? allSubordinates.filter((s) =>
+      );
+    }
+    if (isHC) {
+      return allSubordinates.filter((s) =>
         groupLeaders.some((gl) => s.groupLeaderId === gl.nik || s.groupLeaderName === gl.name)
-      )
-    : allSubordinates;
+      );
+    }
+    return allSubordinates;
+  }, [employees, isGL, isHC, groupLeaders, currentUser?.nik, currentUser?.name]);
 
   const headCoachObj = employees.find((e) => e.role === 'head_coach');
   const headCoachName = isHC

@@ -61,7 +61,7 @@ interface AppContextType {
   // Cloud Sync
   isSyncingFirebase: boolean;
   syncAllDataToFirebase: () => Promise<{ success: boolean; count: number; message: string }>;
-  refreshFromFirebase: () => Promise<void>;
+  refreshFromFirebase: (force?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -152,11 +152,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedPeriod, setSelectedPeriod] = useState<string>('2026-08');
 
   const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
+  const isFetchingRef = React.useRef(false);
+  const hasInitializedRef = React.useRef(false);
 
-  // Sync with Firebase on mount if configured with smart auto-merge
-  const refreshFromFirebase = async () => {
+  // Sync with Firebase with smart caching and loop prevention
+  const refreshFromFirebase = async (force: boolean = false) => {
     if (!isFirebaseConfigured()) return;
+    if (isFetchingRef.current) return;
+
+    // Cooldown check (15 minutes) unless explicitly forced by user
+    if (!force) {
+      const lastSync = localStorage.getItem('mer_last_fb_sync_ts');
+      const hasLocalEmployees = localStorage.getItem('mer_employees');
+      if (lastSync && hasLocalEmployees) {
+        const timeSinceSync = Date.now() - parseInt(lastSync, 10);
+        // If synced within 15 minutes, skip auto-fetch to protect Firestore quota
+        if (timeSinceSync < 15 * 60 * 1000) {
+          return;
+        }
+      }
+    }
+
+    isFetchingRef.current = true;
     setIsSyncingFirebase(true);
+
     try {
       const [fbEmps, fbReports, fbSettings] = await Promise.all([
         fetchEmployeesFromFirebase(),
@@ -165,66 +184,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ]);
 
       if (fbEmps && fbEmps.length > 0) {
-        setEmployees((localEmps) => {
-          // Merge local employees with Firebase to prevent losing newly uploaded local data
-          const existingNiks = new Set(fbEmps.map((e) => e.nik));
-          const localOnly = localEmps.filter((le) => !existingNiks.has(le.nik));
-          
-          if (localOnly.length > 0) {
-            const combined = [...fbEmps, ...localOnly];
-            // Push missing local employees to Firebase in background
-            saveBulkEmployeesToFirebase(combined);
-            return combined;
-          }
-          return fbEmps;
-        });
-      } else {
-        // If Firestore is empty, seed with current local employees
-        setEmployees((localEmps) => {
-          if (localEmps.length > 0) {
-            saveBulkEmployeesToFirebase(localEmps);
-          }
-          return localEmps;
-        });
+        setEmployees(fbEmps);
       }
 
       if (fbReports && fbReports.length > 0) {
-        setReports((localReports) => {
-          const existingReportIds = new Set(fbReports.map((r) => r.id || `${r.nik}_${r.period}`));
-          const localOnly = localReports.filter(
-            (lr) => !existingReportIds.has(lr.id || `${lr.nik}_${lr.period}`)
-          );
-          if (localOnly.length > 0) {
-            const combined = [...fbReports, ...localOnly];
-            saveBulkReportsToFirebase(combined);
-            return combined;
-          }
-          return fbReports;
-        });
-      } else {
-        setReports((localReports) => {
-          if (localReports.length > 0) {
-            saveBulkReportsToFirebase(localReports);
-          }
-          return localReports;
-        });
+        setReports(fbReports);
       }
 
       if (fbSettings) {
-        if (fbSettings.operatorParameters) setOperatorParameters(fbSettings.operatorParameters);
-        if (fbSettings.nonomParameters) setNonomParameters(fbSettings.nonomParameters);
-        if (fbSettings.meritRules) setMeritRules(fbSettings.meritRules);
-        if (fbSettings.demeritRules) setDemeritRules(fbSettings.demeritRules);
+        if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
+          setOperatorParameters(fbSettings.operatorParameters);
+        }
+        if (fbSettings.nonomParameters && Array.isArray(fbSettings.nonomParameters)) {
+          setNonomParameters(fbSettings.nonomParameters);
+        }
+        if (fbSettings.meritRules && Array.isArray(fbSettings.meritRules)) {
+          setMeritRules(fbSettings.meritRules);
+        }
+        if (fbSettings.demeritRules && Array.isArray(fbSettings.demeritRules)) {
+          setDemeritRules(fbSettings.demeritRules);
+        }
       }
+
+      localStorage.setItem('mer_last_fb_sync_ts', String(Date.now()));
     } catch (err) {
       console.error('Error refreshing from Firebase:', err);
     } finally {
+      isFetchingRef.current = false;
       setIsSyncingFirebase(false);
     }
   };
 
   useEffect(() => {
-    refreshFromFirebase();
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      refreshFromFirebase(false);
+    }
   }, []);
 
   const syncAllDataToFirebase = async (): Promise<{ success: boolean; count: number; message: string }> => {

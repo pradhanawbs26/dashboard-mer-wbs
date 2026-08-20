@@ -1,6 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  initializeFirestore,
   getFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection,
   doc,
   getDocs,
@@ -62,7 +65,16 @@ export const getDb = () => {
 
   try {
     const app = getApps().length === 0 ? initializeApp(cfg) : getApp();
-    dbInstance = getFirestore(app);
+    try {
+      dbInstance = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch {
+      // Fallback if already initialized or in unsupported environment
+      dbInstance = getFirestore(app);
+    }
     return dbInstance;
   } catch (err) {
     console.warn('Firebase initialization warning:', err);

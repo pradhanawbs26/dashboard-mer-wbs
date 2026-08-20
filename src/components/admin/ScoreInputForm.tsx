@@ -163,19 +163,25 @@ export const ScoreInputForm: React.FC = () => {
 
   // Sync raw metrics -> auto-calculate scores for non-overridden parameters
   useEffect(() => {
-    const newScores: Record<string, number> = { ...scores };
-    const newReasons: Record<string, string> = { ...evalReasons };
-
-    parameters.forEach((param) => {
-      const evalRes = evaluateParameterScore(param, rawMetrics);
-      if (!manualOverrides[param.id]) {
-        newScores[param.id] = evalRes.level;
-      }
-      newReasons[param.id] = evalRes.reason;
+    setScores((prevScores) => {
+      const updated: Record<string, number> = { ...prevScores };
+      parameters.forEach((param) => {
+        if (!manualOverrides[param.id]) {
+          const evalRes = evaluateParameterScore(param, rawMetrics);
+          updated[param.id] = evalRes.level;
+        }
+      });
+      return updated;
     });
 
-    setScores(newScores);
-    setEvalReasons(newReasons);
+    setEvalReasons((prevReasons) => {
+      const updated: Record<string, string> = { ...prevReasons };
+      parameters.forEach((param) => {
+        const evalRes = evaluateParameterScore(param, rawMetrics);
+        updated[param.id] = evalRes.reason;
+      });
+      return updated;
+    });
   }, [rawMetrics, parameters, manualOverrides]);
 
   // Load existing report or initialize default metrics on employee or period change
