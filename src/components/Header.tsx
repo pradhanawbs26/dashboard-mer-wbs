@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserSettingsModal } from './common/UserSettingsModal';
+import { AVAILABLE_PERIODS_2026 } from '../utils/calculations';
 import {
   LogOut,
   Calendar,
@@ -45,12 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
     };
   }, []);
 
-  const periods = [
-    { value: '2026-08', label: 'Agustus 2026' },
-    { value: '2026-07', label: 'Juli 2026' },
-    { value: '2026-06', label: 'Juni 2026' },
-    { value: '2026-05', label: 'Mei 2026' },
-  ];
+  const periods = AVAILABLE_PERIODS_2026;
 
   const getRoleLabel = () => {
     if (!currentUser) return '';

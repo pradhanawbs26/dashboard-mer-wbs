@@ -178,8 +178,8 @@ export const fetchEmployeesFromFirebase = async (
     if (options?.groupLeaderId) {
       constraints.push(where('groupLeaderId', '==', options.groupLeaderId));
     }
-    // Apply safe default limit to avoid uncontrolled batch scans
-    constraints.push(limit(options?.limitCount || 500));
+    // Apply safe limit to avoid uncontrolled memory usage while accommodating all employees
+    constraints.push(limit(options?.limitCount || 1000));
 
     const q = query(collection(db, 'employees'), ...constraints);
     const snapshot = await getDocs(q);
@@ -195,8 +195,9 @@ export const saveEmployeeToFirebase = async (employee: Employee): Promise<boolea
   const db = getDb();
   if (!db) return false;
   try {
-    const sanitized = cleanForFirestore(employee);
-    await setDoc(doc(db, 'employees', employee.id), sanitized);
+    const docId = employee.id && employee.id.trim() !== '' ? employee.id : (employee.nik ? `emp_${employee.nik}` : `emp_${Date.now()}`);
+    const sanitized = cleanForFirestore({ ...employee, id: docId });
+    await setDoc(doc(db, 'employees', docId), sanitized, { merge: true });
     recordFirestoreWrite('saveEmployee', 1);
     return true;
   } catch (err) {
@@ -228,8 +229,9 @@ export const saveBulkEmployeesToFirebase = async (employees: Employee[]): Promis
       const chunk = employees.slice(i, i + chunkSize);
       const batch = writeBatch(db);
       chunk.forEach((emp) => {
-        const sanitized = cleanForFirestore(emp);
-        batch.set(doc(db, 'employees', emp.id), sanitized);
+        const docId = emp.id && emp.id.trim() !== '' ? emp.id : (emp.nik ? `emp_${emp.nik}` : `emp_${Date.now()}`);
+        const sanitized = cleanForFirestore({ ...emp, id: docId });
+        batch.set(doc(db, 'employees', docId), sanitized, { merge: true });
       });
       await batch.commit();
       recordFirestoreWrite('saveBulkEmployees', chunk.length);
@@ -262,8 +264,8 @@ export const fetchReportsFromFirebase = async (
     if (options?.nik) {
       constraints.push(where('nik', '==', options.nik));
     }
-    // Cap results with limit() to prevent high document reads
-    constraints.push(limit(options?.limitCount || 500));
+    // Set limit high enough so all active reports across periods and employees are loaded
+    constraints.push(limit(options?.limitCount || 1500));
 
     const q = query(collection(db, 'reports'), ...constraints);
     const snapshot = await getDocs(q);
@@ -313,8 +315,9 @@ export const saveReportToFirebase = async (report: MonthlyReport): Promise<boole
   const db = getDb();
   if (!db) return false;
   try {
-    const sanitized = cleanForFirestore(report);
-    await setDoc(doc(db, 'reports', report.id), sanitized);
+    const docId = report.id && report.id.trim() !== '' ? report.id : `rep_${report.nik}_${report.period}`;
+    const sanitized = cleanForFirestore({ ...report, id: docId });
+    await setDoc(doc(db, 'reports', docId), sanitized, { merge: true });
     recordFirestoreWrite('saveReport', 1);
     return true;
   } catch (err) {
@@ -345,8 +348,9 @@ export const saveBulkReportsToFirebase = async (reports: MonthlyReport[]): Promi
       const chunk = reports.slice(i, i + chunkSize);
       const batch = writeBatch(db);
       chunk.forEach((rep) => {
-        const sanitized = cleanForFirestore(rep);
-        batch.set(doc(db, 'reports', rep.id), sanitized);
+        const docId = rep.id && rep.id.trim() !== '' ? rep.id : `rep_${rep.nik}_${rep.period}`;
+        const sanitized = cleanForFirestore({ ...rep, id: docId });
+        batch.set(doc(db, 'reports', docId), sanitized, { merge: true });
       });
       await batch.commit();
       recordFirestoreWrite('saveBulkReports', chunk.length);

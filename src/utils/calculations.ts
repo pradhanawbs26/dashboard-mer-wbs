@@ -526,6 +526,33 @@ export function formatPeriodLabel(periodString: string): string {
   return `${monthNames[monthIndex] || month} ${year}`;
 }
 
+export const AVAILABLE_PERIODS_2026 = [
+  { value: '2026-01', label: 'Januari 2026' },
+  { value: '2026-02', label: 'Februari 2026' },
+  { value: '2026-03', label: 'Maret 2026' },
+  { value: '2026-04', label: 'April 2026' },
+  { value: '2026-05', label: 'Mei 2026' },
+  { value: '2026-06', label: 'Juni 2026' },
+  { value: '2026-07', label: 'Juli 2026' },
+  { value: '2026-08', label: 'Agustus 2026' },
+  { value: '2026-09', label: 'September 2026' },
+  { value: '2026-10', label: 'Oktober 2026' },
+  { value: '2026-11', label: 'November 2026' },
+  { value: '2026-12', label: 'Desember 2026' },
+];
+
+/**
+ * Calculates default period: Previous month of the current date.
+ * E.g., if current system month is August 2026, default is July 2026 ('2026-07').
+ */
+export function getDefaultPreviousPeriod(): string {
+  const now = new Date();
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const year = prevMonthDate.getFullYear();
+  const month = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
 export function getParameterIndicatorDetails(
   param: DynamicParameter,
   report?: MonthlyReport | null,

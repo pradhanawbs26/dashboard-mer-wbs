@@ -15,6 +15,7 @@ import {
   DEFAULT_NONOM_PARAMETERS,
   DEFAULT_MERIT_RULES,
   DEFAULT_DEMERIT_RULES,
+  getDefaultPreviousPeriod,
 } from '../utils/calculations';
 import {
   isFirebaseConfigured,
@@ -66,21 +67,12 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const DEMO_NIKS = new Set([
-  '1000', '1001', '1002', '1003',
-  '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010',
-  '3001', '3002', '3003', '3004', '3005', '3006'
-]);
-
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
     const saved = localStorage.getItem('mer_current_user');
     if (!saved) return null;
     try {
       const parsed: Employee | null = JSON.parse(saved);
-      if (!parsed || DEMO_NIKS.has(parsed.nik)) {
-        return null;
-      }
       return parsed;
     } catch {
       return null;
@@ -92,11 +84,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return INITIAL_EMPLOYEES;
     try {
       const parsed: Employee[] = JSON.parse(saved);
-      const filtered = parsed.filter((e) => !DEMO_NIKS.has(e.nik));
-      if (!filtered.some((e) => e.nik === 'admin')) {
-        filtered.unshift(INITIAL_EMPLOYEES[0]);
+      if (!parsed.some((e) => e.nik === 'admin')) {
+        parsed.unshift(INITIAL_EMPLOYEES[0]);
       }
-      return filtered;
+      return parsed;
     } catch {
       return INITIAL_EMPLOYEES;
     }
@@ -107,7 +98,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return generateInitialReports();
     try {
       const parsed: MonthlyReport[] = JSON.parse(saved);
-      return parsed.filter((r) => !DEMO_NIKS.has(r.nik));
+      return parsed;
     } catch {
       return generateInitialReports();
     }
@@ -149,7 +140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : DEFAULT_DEMERIT_RULES;
   });
 
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('2026-08');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => getDefaultPreviousPeriod());
 
   const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
   const isFetchingRef = React.useRef(false);
@@ -180,55 +171,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let fbEmps: Employee[] | null = null;
       let fbReports: MonthlyReport[] | null = null;
 
-      // Scoped querying based on user role to avoid unnecessary document reads
+      // Fetch data according to role
       if (currentUser?.role === 'subordinate') {
-        // Subordinates only need their own reports (e.g. up to 24 months) and base settings
-        const [subReports, fbSettings] = await Promise.all([
-          fetchReportsFromFirebase({ nik: currentUser.nik, limitCount: 24 }),
+        // Subordinates fetch their own reports + all employees (for GL/HC info) + settings
+        const [subReports, emps, fbSettings] = await Promise.all([
+          fetchReportsFromFirebase({ nik: currentUser.nik, limitCount: 48 }),
+          fetchEmployeesFromFirebase({ limitCount: 1000 }),
           fetchSettingsFromFirebase(),
         ]);
         fbReports = subReports;
-
-        if (fbReports && fbReports.length > 0) {
-          setReports((prev) => {
-            const map = new Map(prev.map((r) => [r.id || `${r.nik}_${r.period}`, r]));
-            fbReports?.forEach((r) => map.set(r.id || `${r.nik}_${r.period}`, r));
-            return Array.from(map.values());
-          });
-        }
-
-        if (fbSettings) {
-          if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
-            setOperatorParameters(fbSettings.operatorParameters);
-          }
-          if (fbSettings.nonomParameters && Array.isArray(fbSettings.nonomParameters)) {
-            setNonomParameters(fbSettings.nonomParameters);
-          }
-          if (fbSettings.meritRules && Array.isArray(fbSettings.meritRules)) {
-            setMeritRules(fbSettings.meritRules);
-          }
-          if (fbSettings.demeritRules && Array.isArray(fbSettings.demeritRules)) {
-            setDemeritRules(fbSettings.demeritRules);
-          }
-        }
+        fbEmps = emps;
       } else {
-        // Admin, Head Coach, or Group Leader: Fetch within bounded limits
+        // Admin, Head Coach, or Group Leader: Fetch all employees and reports
         const [emps, reps, fbSettings] = await Promise.all([
-          fetchEmployeesFromFirebase({ limitCount: 300 }),
-          fetchReportsFromFirebase({ limitCount: 400 }),
+          fetchEmployeesFromFirebase({ limitCount: 1000 }),
+          fetchReportsFromFirebase({ limitCount: 1500 }),
           fetchSettingsFromFirebase(),
         ]);
         fbEmps = emps;
         fbReports = reps;
 
-        if (fbEmps && fbEmps.length > 0) {
-          setEmployees(fbEmps);
-        }
-
-        if (fbReports && fbReports.length > 0) {
-          setReports(fbReports);
-        }
-
         if (fbSettings) {
           if (fbSettings.operatorParameters && Array.isArray(fbSettings.operatorParameters)) {
             setOperatorParameters(fbSettings.operatorParameters);
@@ -243,6 +205,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setDemeritRules(fbSettings.demeritRules);
           }
         }
+      }
+
+      if (fbEmps && fbEmps.length > 0) {
+        setEmployees((prev) => {
+          const map = new Map<string, Employee>();
+          prev.forEach((e) => {
+            if (e.nik) map.set(e.nik, e);
+          });
+          fbEmps?.forEach((e) => {
+            if (e.nik) {
+              const existing = map.get(e.nik);
+              map.set(e.nik, existing ? { ...existing, ...e } : e);
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem('mer_employees', JSON.stringify(merged));
+          return merged;
+        });
+      }
+
+      if (fbReports && fbReports.length > 0) {
+        setReports((prev) => {
+          const map = new Map<string, MonthlyReport>();
+          prev.forEach((r) => {
+            if (r.nik && r.period) map.set(`${r.nik}_${r.period}`, r);
+          });
+          fbReports?.forEach((r) => {
+            if (r.nik && r.period) {
+              const key = `${r.nik}_${r.period}`;
+              const existing = map.get(key);
+              if (!existing) {
+                map.set(key, r);
+              } else {
+                const cloudTime = r.updatedAt ? new Date(r.updatedAt).getTime() : 0;
+                const localTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+                if (cloudTime >= localTime) {
+                  map.set(key, { ...existing, ...r });
+                }
+              }
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem('mer_reports', JSON.stringify(merged));
+          return merged;
+        });
       }
 
       localStorage.setItem('mer_last_fb_sync_ts', String(Date.now()));
@@ -332,6 +339,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const expectedPassword = found.password || (found.role === 'admin' ? 'admin123' : '123456');
       if (pass === expectedPassword) {
         setCurrentUser(found);
+        // Default to previous month on every login
+        setSelectedPeriod(getDefaultPreviousPeriod());
         return true;
       }
     }
@@ -342,6 +351,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const found = employees.find((e) => e.nik === nik);
     if (found) {
       setCurrentUser(found);
+      // Default to previous month on quick switch
+      setSelectedPeriod(getDefaultPreviousPeriod());
     }
   };
 
@@ -352,16 +363,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addEmployee = (empData: Omit<Employee, 'id'>) => {
     const newEmp: Employee = {
       ...empData,
-      id: `emp_${Date.now()}`,
+      id: empData.nik ? `emp_${empData.nik}` : `emp_${Date.now()}`,
     };
-    setEmployees((prev) => [...prev, newEmp]);
+    setEmployees((prev) => {
+      const updated = [...prev, newEmp];
+      localStorage.setItem('mer_employees', JSON.stringify(updated));
+      return updated;
+    });
     saveEmployeeToFirebase(newEmp);
   };
 
   const updateEmployee = (updatedEmp: Employee) => {
-    setEmployees((prev) =>
-      prev.map((e) => (e.id === updatedEmp.id || e.nik === updatedEmp.nik ? updatedEmp : e))
-    );
+    setEmployees((prev) => {
+      const updated = prev.map((e) =>
+        e.id === updatedEmp.id || e.nik === updatedEmp.nik ? updatedEmp : e
+      );
+      localStorage.setItem('mer_employees', JSON.stringify(updated));
+      return updated;
+    });
     if (currentUser?.nik === updatedEmp.nik) {
       setCurrentUser(updatedEmp);
     }
@@ -369,7 +388,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteEmployee = (id: string) => {
-    setEmployees((prev) => prev.filter((e) => e.id !== id));
+    setEmployees((prev) => {
+      const updated = prev.filter((e) => e.id !== id);
+      localStorage.setItem('mer_employees', JSON.stringify(updated));
+      return updated;
+    });
     deleteEmployeeFromFirebase(id);
   };
 
@@ -395,36 +418,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           itemsToSave.push(fullEmp);
         }
       });
+      localStorage.setItem('mer_employees', JSON.stringify(copy));
       return copy;
     });
     return await saveBulkEmployeesToFirebase(itemsToSave);
   };
 
   const saveMonthlyReport = (report: MonthlyReport) => {
+    const docId = report.id && report.id.trim() !== '' ? report.id : `rep_${report.nik}_${report.period}`;
+    const standardized: MonthlyReport = {
+      ...report,
+      id: docId,
+      updatedAt: report.updatedAt || new Date().toISOString(),
+    };
     setReports((prev) => {
-      const idx = prev.findIndex((r) => r.id === report.id || (r.nik === report.nik && r.period === report.period));
+      const idx = prev.findIndex((r) => r.id === docId || (r.nik === standardized.nik && r.period === standardized.period));
+      let updatedList: MonthlyReport[];
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = report;
-        return copy;
+        copy[idx] = standardized;
+        updatedList = copy;
       } else {
-        return [report, ...prev];
+        updatedList = [standardized, ...prev];
       }
+      localStorage.setItem('mer_reports', JSON.stringify(updatedList));
+      return updatedList;
     });
-    saveReportToFirebase(report);
+    saveReportToFirebase(standardized);
   };
 
   const deleteMonthlyReport = (id: string) => {
-    setReports((prev) => prev.filter((r) => r.id !== id));
+    setReports((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      localStorage.setItem('mer_reports', JSON.stringify(updated));
+      return updated;
+    });
     deleteReportFromFirebase(id);
   };
 
   const bulkImportReports = async (newReports: MonthlyReport[]): Promise<boolean> => {
+    const standardizedReports = newReports.map((nr) => {
+      const docId = nr.id && nr.id.trim() !== '' ? nr.id : `rep_${nr.nik}_${nr.period}`;
+      return {
+        ...nr,
+        id: docId,
+        updatedAt: nr.updatedAt || new Date().toISOString(),
+      };
+    });
+
     setReports((prev) => {
       const copy = [...prev];
-      newReports.forEach((nr) => {
+      standardizedReports.forEach((nr) => {
         const existingIdx = copy.findIndex(
-          (r) => r.nik === nr.nik && r.period === nr.period
+          (r) => r.id === nr.id || (r.nik === nr.nik && r.period === nr.period)
         );
         if (existingIdx >= 0) {
           copy[existingIdx] = nr;
@@ -432,9 +478,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           copy.unshift(nr);
         }
       });
+      localStorage.setItem('mer_reports', JSON.stringify(copy));
       return copy;
     });
-    return await saveBulkReportsToFirebase(newReports);
+    return await saveBulkReportsToFirebase(standardizedReports);
   };
 
   const updateOperatorParameters = (params: DynamicParameter[]) => {

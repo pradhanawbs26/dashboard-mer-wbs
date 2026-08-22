@@ -45,6 +45,7 @@ export const BulkImporter: React.FC = () => {
   >([]);
 
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Download Standardized Excel Template containing supporting indicator metrics columns
   const downloadTemplate = () => {
@@ -133,7 +134,11 @@ export const BulkImporter: React.FC = () => {
 
         const processed = data.map((row) => {
           const nik = String(row['NIK'] || '').trim();
-          const emp = subEmployees.find((e) => e.nik === nik);
+          const emp = employees.find(
+            (e) => e.nik.trim().toLowerCase() === nik.toLowerCase()
+          ) || subEmployees.find(
+            (e) => e.nik.trim().toLowerCase() === nik.toLowerCase()
+          );
 
           if (!emp) {
             return {
@@ -313,76 +318,86 @@ export const BulkImporter: React.FC = () => {
   };
 
   // Commit valid imported reports to App Context
-  const handleBatchCommit = () => {
+  const handleBatchCommit = async () => {
     const validItems = parsedRows.filter((r) => r.isValid);
     if (validItems.length === 0) return;
 
-    const newReports: MonthlyReport[] = validItems.map((item) => {
-      const emp = subEmployees.find((e) => e.nik === item.nik)!;
-      const isOp = emp.category === 'Operator';
-      const params = isOp ? operatorParameters : nonomParameters;
+    setIsSaving(true);
+    try {
+      const newReports: MonthlyReport[] = validItems.map((item) => {
+        const emp =
+          employees.find((e) => e.nik.trim().toLowerCase() === item.nik.trim().toLowerCase()) ||
+          subEmployees.find((e) => e.nik.trim().toLowerCase() === item.nik.trim().toLowerCase())!;
 
-      const selectedMeritIds: string[] = [];
-      const selectedDemeritIds: string[] = [];
+        const isOp = emp.category === 'Operator';
+        const params = isOp ? operatorParameters : nonomParameters;
 
-      if (item.meritCode) {
-        const foundM = meritRules.find(
-          (m) => m.code === item.meritCode || m.id === item.meritCode
+        const selectedMeritIds: string[] = [];
+        const selectedDemeritIds: string[] = [];
+
+        if (item.meritCode) {
+          const foundM = meritRules.find(
+            (m) => m.code === item.meritCode || m.id === item.meritCode
+          );
+          if (foundM) selectedMeritIds.push(foundM.id);
+        }
+
+        if (item.demeritCode) {
+          const foundD = demeritRules.find(
+            (d) => d.code === item.demeritCode || d.id === item.demeritCode
+          );
+          if (foundD) selectedDemeritIds.push(foundD.id);
+        }
+
+        const calc = calculateMerScore(
+          item.scores,
+          params,
+          selectedMeritIds,
+          selectedDemeritIds,
+          meritRules,
+          demeritRules
         );
-        if (foundM) selectedMeritIds.push(foundM.id);
-      }
 
-      if (item.demeritCode) {
-        const foundD = demeritRules.find(
-          (d) => d.code === item.demeritCode || d.id === item.demeritCode
-        );
-        if (foundD) selectedDemeritIds.push(foundD.id);
-      }
+        const formattedRawMetrics: Record<string, string> = {
+          'ATR Kehadiran': `${item.rawMetrics.atrRate || 0}%`,
+          'Terlambat / Mangkir': `${item.rawMetrics.terlambatCount || 0}x Terlambat / ${item.rawMetrics.mangkirCount || 0}x Mangkir`,
+          'Productivity': `${item.rawMetrics.productivityRate || 0}%`,
+          'SAP Hazard Report': `${item.rawMetrics.sapCount || 0} Laporan`,
+          'Insiden K3': `${item.rawMetrics.incidentCount || 0} Incident`,
+          'Misoperasi': `${item.rawMetrics.misoperasiCount || 0} Incident`,
+          'Timesheet Status': item.rawMetrics.timesheetStatus || 'Lengkap & Valid',
+        };
 
-      const calc = calculateMerScore(
-        item.scores,
-        params,
-        selectedMeritIds,
-        selectedDemeritIds,
-        meritRules,
-        demeritRules
-      );
+        return {
+          id: `rep_${emp.nik}_${selectedPeriod}`,
+          nik: emp.nik,
+          employeeName: emp.name,
+          department: emp.department,
+          category: emp.category,
+          equipmentType: emp.equipmentType,
+          period: selectedPeriod,
+          scores: item.scores,
+          rawMetrics: formattedRawMetrics,
+          meritItems: selectedMeritIds,
+          demeritItems: selectedDemeritIds,
+          baseScore: calc.baseScore,
+          meritPoint: calc.meritPoint,
+          demeritPoint: calc.demeritPoint,
+          finalScore: calc.finalScore,
+          evaluatorNik: currentUser?.nik || 'admin',
+          evaluatorName: currentUser?.name || 'Administrator',
+          notes: `Bulk Import Excel Indikator Auto-Evaluasi (${new Date().toLocaleDateString('id-ID')})`,
+          updatedAt: new Date().toISOString(),
+        };
+      });
 
-      const formattedRawMetrics: Record<string, string> = {
-        'ATR Kehadiran': `${item.rawMetrics.atrRate || 0}%`,
-        'Terlambat / Mangkir': `${item.rawMetrics.terlambatCount || 0}x Terlambat / ${item.rawMetrics.mangkirCount || 0}x Mangkir`,
-        'Productivity': `${item.rawMetrics.productivityRate || 0}%`,
-        'SAP Hazard Report': `${item.rawMetrics.sapCount || 0} Laporan`,
-        'Insiden K3': `${item.rawMetrics.incidentCount || 0} Incident`,
-        'Misoperasi': `${item.rawMetrics.misoperasiCount || 0} Incident`,
-        'Timesheet Status': item.rawMetrics.timesheetStatus || 'Lengkap & Valid',
-      };
-
-      return {
-        id: `rep_${emp.nik}_${selectedPeriod}`,
-        nik: emp.nik,
-        employeeName: emp.name,
-        department: emp.department,
-        category: emp.category,
-        equipmentType: emp.equipmentType,
-        period: selectedPeriod,
-        scores: item.scores,
-        rawMetrics: formattedRawMetrics,
-        meritItems: selectedMeritIds,
-        demeritItems: selectedDemeritIds,
-        baseScore: calc.baseScore,
-        meritPoint: calc.meritPoint,
-        demeritPoint: calc.demeritPoint,
-        finalScore: calc.finalScore,
-        evaluatorNik: currentUser?.nik || 'admin',
-        evaluatorName: currentUser?.name || 'Administrator',
-        notes: `Bulk Import Excel Indikator Auto-Evaluasi (${new Date().toLocaleDateString('id-ID')})`,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
-    bulkImportReports(newReports);
-    setIsSuccess(true);
+      await bulkImportReports(newReports);
+      setIsSuccess(true);
+    } catch (err) {
+      console.error('Failed to commit reports in bulk:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -484,11 +499,15 @@ export const BulkImporter: React.FC = () => {
 
             <button
               onClick={handleBatchCommit}
-              disabled={parsedRows.filter((r) => r.isValid).length === 0}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-sm flex items-center space-x-1 cursor-pointer"
+              disabled={isSaving || parsedRows.filter((r) => r.isValid).length === 0}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-sm flex items-center space-x-1 cursor-pointer transition-all"
             >
               <Save className="w-4 h-4" />
-              <span>Simpan Massal ({parsedRows.filter((r) => r.isValid).length} Valid)</span>
+              <span>
+                {isSaving
+                  ? 'Menyimpan ke Cloud...'
+                  : `Simpan Massal (${parsedRows.filter((r) => r.isValid).length} Valid)`}
+              </span>
             </button>
           </div>
 
